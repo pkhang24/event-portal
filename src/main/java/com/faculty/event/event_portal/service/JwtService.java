@@ -6,11 +6,14 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import java.security.Key;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Function;
 
 import java.nio.charset.StandardCharsets;
@@ -34,15 +37,42 @@ public class JwtService {
         return claimsResolver.apply(claims);
     }
 
-    // Tạo token
+    // Code MỚI (đã bổ sung ROLE)
     public String generateToken(UserDetails userDetails) {
+        Map<String, Object> claims = new HashMap<>();
+
+        // Lấy role từ UserDetails và đưa vào claims
+        // Vì userDetails.getAuthorities() trả về một danh sách, ta lấy phần tử đầu tiên
+        String role = userDetails.getAuthorities().stream()
+                .findFirst()
+                .map(GrantedAuthority::getAuthority)
+                .orElse("STUDENT"); // Giá trị mặc định nếu không tìm thấy
+
+        claims.put("role", role); // <-- QUAN TRỌNG NHẤT: Thêm dòng này
+
+        return createToken(claims, userDetails.getUsername());
+    }
+
+    // Hàm createToken (nếu bạn tách riêng ra)
+    private String createToken(Map<String, Object> claims, String subject) {
         return Jwts.builder()
-                .setSubject(userDetails.getUsername())
+                .setClaims(claims) // <-- Đảm bảo có dòng này để đưa claims vào token
+                .setSubject(subject)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24)) // 24 giờ
+                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24))
                 .signWith(getSignInKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
+
+//    // Tạo token
+//    public String generateToken(UserDetails userDetails) {
+//        return Jwts.builder()
+//                .setSubject(userDetails.getUsername())
+//                .setIssuedAt(new Date(System.currentTimeMillis()))
+//                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24)) // 24 giờ
+//                .signWith(getSignInKey(), SignatureAlgorithm.HS256)
+//                .compact();
+//    }
 
     // Kiểm tra token
     public boolean isTokenValid(String token, UserDetails userDetails) {

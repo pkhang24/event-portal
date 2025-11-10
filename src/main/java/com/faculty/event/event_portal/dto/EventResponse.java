@@ -19,4 +19,5 @@ public class EventResponse {
     private int luotXem;
     private String tenNguoiDang; // Thêm thông tin người đăng cho đẹp
     private LocalDateTime createdAt;
+    private Boolean isRegistered; // Thêm trường này (có thể null nếu user chưa đăng nhập)
 }

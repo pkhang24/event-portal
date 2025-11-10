@@ -7,10 +7,12 @@ import com.faculty.event.event_portal.entity.EventStatus;
 import com.faculty.event.event_portal.entity.Role;
 import com.faculty.event.event_portal.entity.User;
 import com.faculty.event.event_portal.repository.EventRepository;
+import com.faculty.event.event_portal.repository.RegistrationRepository;
 import com.faculty.event.event_portal.repository.UserRepository;
 import com.faculty.event.event_portal.service.EventService;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -21,14 +23,19 @@ public class EventServiceImpl implements EventService {
 
     private final EventRepository eventRepository;
     private final UserRepository userRepository;
+    private final RegistrationRepository registrationRepository; // Inject thêm cái này
 
-    public EventServiceImpl(EventRepository eventRepository, UserRepository userRepository) {
+
+    public EventServiceImpl(EventRepository eventRepository,
+                            UserRepository userRepository,
+                            RegistrationRepository registrationRepository) { // Cập nhật constructor
         this.eventRepository = eventRepository;
         this.userRepository = userRepository;
+        this.registrationRepository = registrationRepository; // Gán giá trị
     }
 
     // --- Hàm helper để chuyển Entity -> DTO ---
-    private EventResponse convertToResponse(Event event) {
+    private EventResponse convertToResponse(Event event, Boolean isRegistered) {
         EventResponse response = new EventResponse();
         response.setId(event.getId());
         response.setTieuDe(event.getTieuDe());
@@ -43,6 +50,7 @@ public class EventServiceImpl implements EventService {
         response.setLuotXem(event.getLuotXem());
         response.setTenNguoiDang(event.getNguoiDang().getHoTen());
         response.setCreatedAt(event.getCreatedAt());
+        response.setIsRegistered(isRegistered); // Gán giá trị mới
         return response;
     }
 
@@ -51,20 +59,39 @@ public class EventServiceImpl implements EventService {
         // Chỉ lấy các sự kiện đã PUBLISHED và map sang DTO
         return eventRepository.findAllByTrangThai(EventStatus.PUBLISHED)
                 .stream()
-                .map(this::convertToResponse)
+                .map(event -> convertToResponse(event, false)) // Truyền false (hoặc null) vào tham số thứ 2
+//                .map(this::convertToResponse)
                 .collect(Collectors.toList());
     }
 
+    // Sửa hàm getEventById
     @Override
     public EventResponse getEventById(Long id) {
         Event event = eventRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy sự kiện"));
 
-        // Tăng lượt xem (có thể cải tiến sau)
+        // Tăng view
         event.setLuotXem(event.getLuotXem() + 1);
         eventRepository.save(event);
 
-        return convertToResponse(event);
+        // --- KIỂM TRA ĐĂNG KÝ ---
+        Boolean isRegistered = false;
+        try {
+            // Lấy email người dùng hiện tại từ SecurityContext
+            String currentEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+            if (currentEmail != null && !currentEmail.equals("anonymousUser")) {
+                User currentUser = userRepository.findByEmail(currentEmail).orElse(null);
+                if (currentUser != null) {
+                    // Kiểm tra xem user này đã đăng ký event này chưa
+                    isRegistered = registrationRepository.existsByUserAndEvent(currentUser, event);
+                }
+            }
+        } catch (Exception e) {
+            // Bỏ qua lỗi nếu không lấy được user (ví dụ: chưa đăng nhập)
+            isRegistered = false;
+        }
+
+        return convertToResponse(event, isRegistered);
     }
 
     @Override
@@ -89,7 +116,7 @@ public class EventServiceImpl implements EventService {
         // 3. Lưu vào CSDL
         Event savedEvent = eventRepository.save(event);
 
-        return convertToResponse(savedEvent);
+        return convertToResponse(savedEvent, false);
     }
 
     @Override
@@ -118,7 +145,7 @@ public class EventServiceImpl implements EventService {
         event.setSoLuongGioiHan(request.getSoLuongGioiHan());
 
         Event updatedEvent = eventRepository.save(event);
-        return convertToResponse(updatedEvent);
+        return convertToResponse(updatedEvent, false);
     }
 
     @Override
