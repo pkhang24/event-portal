@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.LinkedHashMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -80,6 +81,20 @@ public class AdminServiceImpl implements AdminService {
         stats.put("totalEvents", eventRepository.count());
         stats.put("totalRegistrations", registrationRepository.count());
         // Có thể thêm: số sự kiện đang chờ duyệt (DRAFT)...
+        return stats;
+    }
+
+    @Override
+    public Map<String, Long> getEventRegistrationStats() {
+        List<Object[]> results = eventRepository.findTop5EventsByRegistration();
+        // Dùng LinkedHashMap để giữ đúng thứ tự "Top 5"
+        Map<String, Long> stats = new LinkedHashMap<>();
+
+        for (Object[] result : results) {
+            String eventName = (String) result[0];
+            Long registrationCount = (Long) result[1];
+            stats.put(eventName, registrationCount);
+        }
         return stats;
     }
 }

@@ -10,6 +10,8 @@ public interface EventService {
     // Lấy tất cả sự kiện (public, đã PUBLISHED)
     List<EventResponse> getAllPublishedEvents();
 
+    List<EventResponse> getMyEvents(String posterEmail);
+
     // Lấy chi tiết 1 sự kiện (public)
     EventResponse getEventById(Long id);
 

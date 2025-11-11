@@ -167,4 +167,16 @@ public class EventServiceImpl implements EventService {
         // Tạm thời chúng ta cho phép xóa
         eventRepository.delete(event);
     }
+
+    @Override
+    public List<EventResponse> getMyEvents(String posterEmail) {
+        User poster = userRepository.findByEmail(posterEmail)
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy người dùng"));
+
+        return eventRepository.findAllByNguoiDang(poster)
+                .stream()
+                // Khi poster xem sự kiện của mình, không cần check "isRegistered"
+                .map(event -> convertToResponse(event, false))
+                .collect(Collectors.toList());
+    }
 }

@@ -57,14 +57,20 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
 
                 // 2. Cấu hình CORS (cú pháp mới)
+                // ...
                 .cors(cors -> cors.configurationSource(request -> {
                     var corsConfig = new CorsConfiguration();
-                    corsConfig.setAllowedOrigins(List.of("http://localhost:5173")); // Cho phép React
+                    // Cho phép cả localhost VÀ địa chỉ IP mạng của bạn
+                    corsConfig.setAllowedOrigins(List.of(
+                            "http://localhost:5173",
+                            "http://192.168.2.5:5173" // <<<--- THÊM DÒNG NÀY
+                    ));
                     corsConfig.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
                     corsConfig.setAllowedHeaders(List.of("*"));
                     corsConfig.setAllowCredentials(true);
                     return corsConfig;
                 }))
+// ...
 
                 // 3. Cấu hình Session (cú pháp mới)
                 .sessionManagement(session ->
@@ -86,6 +92,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/events").hasAuthority(Role.POSTER.name())
                         .requestMatchers(HttpMethod.PUT, "/api/events/**").hasAuthority(Role.POSTER.name())
                         .requestMatchers("/api/registrations/check-in").hasAnyAuthority(Role.POSTER.name(), Role.ADMIN.name())
+                        // Trong SecurityConfig.java, thêm vào mục POSTER:
+                        .requestMatchers(HttpMethod.GET, "/api/events/my-events").hasAuthority(Role.POSTER.name())
 
                         // --- CÁC ENDPOINT CỦA ADMIN ---
                         .requestMatchers("/api/admin/**").hasAuthority(Role.ADMIN.name())

@@ -14,4 +14,6 @@ public interface AdminService {
 
     // 3. Thống kê tổng quan
     Map<String, Long> getDashboardStats();
+
+    Map<String, Long> getEventRegistrationStats(); // Thống kê lượt đăng ký sự kiện
 }

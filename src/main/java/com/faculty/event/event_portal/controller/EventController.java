@@ -66,4 +66,13 @@ public class EventController {
         eventService.deleteEvent(id, email);
         return ResponseEntity.noContent().build(); // 204 No Content
     }
+
+    // API 6: (Poster) Lấy danh sách sự kiện do TÔI tạo
+    // GET http://localhost:8080/api/events/my-events
+    @GetMapping("/my-events")
+    public ResponseEntity<List<EventResponse>> getMyEvents(Authentication authentication) {
+        String email = authentication.getName();
+        List<EventResponse> events = eventService.getMyEvents(email);
+        return ResponseEntity.ok(events);
+    }
 }

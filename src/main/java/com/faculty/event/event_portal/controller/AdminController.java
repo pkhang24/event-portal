@@ -57,4 +57,10 @@ public class AdminController {
     public ResponseEntity<Map<String, Long>> getDashboardStats() {
         return ResponseEntity.ok(adminService.getDashboardStats());
     }
+
+    // GET /api/admin/event-stats
+    @GetMapping("/event-stats")
+    public ResponseEntity<Map<String, Long>> getEventRegistrationStats() {
+        return ResponseEntity.ok(adminService.getEventRegistrationStats());
+    }
 }
