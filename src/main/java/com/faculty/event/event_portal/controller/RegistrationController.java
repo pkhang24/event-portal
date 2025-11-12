@@ -43,12 +43,21 @@ public class RegistrationController {
 
     // API 3: Điểm danh (Check-in)
     // YÊU CẦU VAI TRÒ POSTER hoặc ADMIN
-// POST http://localhost:8080/api/registrations/check-in
+    // POST http://localhost:8080/api/registrations/check-in
     @PostMapping("/check-in")
     public ResponseEntity<TicketResponse> checkIn(@RequestBody CheckInRequest request,
                                                   Authentication authentication) {
         // Chúng ta có thể log lại email người check-in (authentication.getName()) nếu muốn
         TicketResponse ticket = registrationService.checkInTicket(request.getTicketCode());
         return ResponseEntity.ok(ticket);
+    }
+
+    // API 4: Lấy lịch sử tham gia (Đã tham gia & Đã kết thúc)
+    // GET http://localhost:8080/api/registrations/history
+    @GetMapping("/history")
+    public ResponseEntity<List<TicketResponse>> getMyHistory(Authentication authentication) {
+        String studentEmail = authentication.getName();
+        List<TicketResponse> history = registrationService.getMyHistory(studentEmail);
+        return ResponseEntity.ok(history);
     }
 }

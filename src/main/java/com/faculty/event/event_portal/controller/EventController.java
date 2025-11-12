@@ -22,8 +22,11 @@ public class EventController {
     // API 1: Lấy danh sách sự kiện (cho trang chủ) - PUBLIC
     // GET http://localhost:8080/api/events
     @GetMapping
-    public ResponseEntity<List<EventResponse>> getAllPublishedEvents() {
-        List<EventResponse> events = eventService.getAllPublishedEvents();
+    public ResponseEntity<List<EventResponse>> getAllPublishedEvents(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String status
+    ) {
+        List<EventResponse> events = eventService.getAllPublishedEvents(search, status);
         return ResponseEntity.ok(events);
     }
 

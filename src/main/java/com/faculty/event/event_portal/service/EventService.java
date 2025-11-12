@@ -8,7 +8,7 @@ import java.util.List;
 public interface EventService {
 
     // Lấy tất cả sự kiện (public, đã PUBLISHED)
-    List<EventResponse> getAllPublishedEvents();
+    List<EventResponse> getAllPublishedEvents(String search, String status);
 
     List<EventResponse> getMyEvents(String posterEmail);
 

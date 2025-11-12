@@ -5,6 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.Where;
 import java.time.LocalDateTime;
 
 @Data
@@ -12,6 +14,9 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Entity
 @Table(name = "events")
+@SQLDelete(sql = "UPDATE events SET deleted_at = NOW() WHERE id = ?")
+@Where(clause = "deleted_at IS NULL")
+
 public class Event {
 
     @Id
@@ -49,6 +54,10 @@ public class Event {
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    // --- THÊM TRƯỜNG MỚI NÀY ---
+    @Column(nullable = true)
+    private LocalDateTime deletedAt;
 
     // --- Định nghĩa Quan hệ (Relationship) ---
 

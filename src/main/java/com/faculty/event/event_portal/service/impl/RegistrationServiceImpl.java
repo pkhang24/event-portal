@@ -14,6 +14,7 @@ import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -119,5 +120,18 @@ public class RegistrationServiceImpl implements RegistrationService {
 
         // 5. Trả về thông tin vé (để hiển thị cho người check-in)
         return convertToTicketResponse(updatedRegistration);
+    }
+
+    @Override
+    public List<TicketResponse> getMyHistory(String studentEmail) {
+        User student = userRepository.findByEmail(studentEmail)
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy sinh viên"));
+
+        // Gọi hàm repository mới
+        List<Registration> historyRegistrations = registrationRepository.findHistoryByUser(student, LocalDateTime.now());
+
+        return historyRegistrations.stream()
+                .map(this::convertToTicketResponse) // Dùng lại hàm convert đã có
+                .collect(Collectors.toList());
     }
 }

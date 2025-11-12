@@ -7,10 +7,13 @@ import com.faculty.event.event_portal.entity.EventStatus;
 import com.faculty.event.event_portal.entity.Role;
 import com.faculty.event.event_portal.entity.User;
 import com.faculty.event.event_portal.repository.EventRepository;
+import com.faculty.event.event_portal.repository.EventSpecification;
 import com.faculty.event.event_portal.repository.RegistrationRepository;
 import com.faculty.event.event_portal.repository.UserRepository;
 import com.faculty.event.event_portal.service.EventService;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -55,12 +58,15 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
-    public List<EventResponse> getAllPublishedEvents() {
-        // Chỉ lấy các sự kiện đã PUBLISHED và map sang DTO
-        return eventRepository.findAllByTrangThai(EventStatus.PUBLISHED)
+    public List<EventResponse> getAllPublishedEvents(String search, String status) {
+        Specification<Event> spec = EventSpecification.findByCriteria(search, status);
+
+        // Sắp xếp theo ngày bắt đầu tăng dần
+        Sort sort = Sort.by(Sort.Direction.ASC, "thoiGianBatDau");
+
+        return eventRepository.findAll(spec, sort) // Dùng findAll có Specification
                 .stream()
-                .map(event -> convertToResponse(event, false)) // Truyền false (hoặc null) vào tham số thứ 2
-//                .map(this::convertToResponse)
+                .map(event -> convertToResponse(event, false)) // Mặc định là false
                 .collect(Collectors.toList());
     }
 

@@ -1,5 +1,6 @@
 package com.faculty.event.event_portal.service;
 
+import com.faculty.event.event_portal.entity.User; // Import User entity của bạn
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -51,6 +52,17 @@ public class JwtService {
         claims.put("role", role); // <-- QUAN TRỌNG NHẤT: Thêm dòng này
 
         return createToken(claims, userDetails.getUsername());
+    }
+
+    // --- HÀM MỚI (chấp nhận User entity) ---
+    public String generateToken(User user) {
+        Map<String, Object> claims = new HashMap<>();
+
+        // Thêm các claims tùy chỉnh
+        claims.put("role", user.getRole().name());
+        claims.put("hoTen", user.getHoTen()); // <-- ĐÂY LÀ DÒNG MỚI QUAN TRỌNG
+
+        return createToken(claims, user.getEmail()); // Dùng email làm subject
     }
 
     // Hàm createToken (nếu bạn tách riêng ra)

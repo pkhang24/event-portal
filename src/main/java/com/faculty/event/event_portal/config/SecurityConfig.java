@@ -83,6 +83,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/events/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/banners/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "*/api/profile/**").permitAll()
 
                         // --- CÁC ENDPOINT CỦA STUDENT ---
                         .requestMatchers("/api/registrations/my-tickets").hasAuthority(Role.STUDENT.name())

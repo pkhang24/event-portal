@@ -14,5 +14,7 @@ public interface RegistrationService {
     List<TicketResponse> getMyTickets(String studentEmail);
 
     // 3. (Sẽ làm sau) Poster/Admin điểm danh (check-in)
-     TicketResponse checkInTicket(String ticketCode);
+    TicketResponse checkInTicket(String ticketCode);
+
+    List<TicketResponse> getMyHistory(String studentEmail);
 }
