@@ -19,16 +19,16 @@ public interface UserRepository extends JpaRepository<User, Long> {
     // chỉ bằng cách bạn đặt tên hàm là findBy[TênThuộcTính]
     Optional<User> findByEmail(String email);
 
-    // 1. Tìm tất cả user đã bị xóa mềm
-    @Query("SELECT u FROM User u WHERE u.deletedAt IS NOT NULL")
+    // 1. Tìm tất cả user đã bị xóa mềm (DÙNG NATIVE QUERY)
+    @Query(value = "SELECT * FROM users u WHERE u.deleted_at IS NOT NULL", nativeQuery = true)
     List<User> findSoftDeleted();
 
-    // 2. Tìm một user đã bị xóa mềm
-    @Query("SELECT u FROM User u WHERE u.id = :id AND u.deletedAt IS NOT NULL")
+    // 2. Tìm một user đã bị xóa mềm (DÙNG NATIVE QUERY)
+    @Query(value = "SELECT * FROM users u WHERE u.id = :id AND u.deleted_at IS NOT NULL", nativeQuery = true)
     Optional<User> findSoftDeletedById(@Param("id") Long id);
 
-    // 3. Xóa VĨNH VIỄN (bỏ qua @SQLDelete)
+    // 3. Xóa VĨNH VIỄN (DÙNG NATIVE QUERY)
     @Modifying
-    @Query("DELETE FROM User u WHERE u.id = :id")
+    @Query(value = "DELETE FROM users WHERE id = :id", nativeQuery = true)
     void permanentDelete(@Param("id") Long id);
 }

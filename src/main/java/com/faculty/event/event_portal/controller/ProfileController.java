@@ -1,5 +1,6 @@
 package com.faculty.event.event_portal.controller;
 
+import com.faculty.event.event_portal.dto.ChangePasswordRequest;
 import com.faculty.event.event_portal.dto.UpdateProfileRequest;
 import com.faculty.event.event_portal.dto.UserResponse;
 import com.faculty.event.event_portal.service.AdminService; // Dùng chung AdminService
@@ -31,5 +32,13 @@ public class ProfileController {
                                                         @RequestBody UpdateProfileRequest request) {
         String email = authentication.getName();
         return ResponseEntity.ok(adminService.updateMyProfile(email, request));
+    }
+
+    // POST /api/profile/change-password
+    @PostMapping("/change-password")
+    public ResponseEntity<Void> changePassword(Authentication authentication,
+                                               @RequestBody ChangePasswordRequest request) {
+        adminService.changePassword(authentication.getName(), request);
+        return ResponseEntity.ok().build();
     }
 }

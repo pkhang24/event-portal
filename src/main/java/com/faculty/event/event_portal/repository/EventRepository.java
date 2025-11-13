@@ -30,16 +30,16 @@ public interface EventRepository extends JpaRepository<Event, Long>, JpaSpecific
             "LIMIT 5")
     List<Object[]> findTop5EventsByRegistration();
 
-    // 1. Tìm tất cả sự kiện đã bị xóa mềm
-    @Query("SELECT e FROM Event e WHERE e.deletedAt IS NOT NULL")
+    // 1. Tìm tất cả sự kiện đã bị xóa mềm (DÙNG NATIVE QUERY)
+    @Query(value = "SELECT * FROM events e WHERE e.deleted_at IS NOT NULL", nativeQuery = true)
     List<Event> findSoftDeleted();
 
-    // 2. Tìm một sự kiện đã bị xóa mềm
-    @Query("SELECT e FROM Event e WHERE e.id = :id AND e.deletedAt IS NOT NULL")
+    // 2. Tìm một sự kiện đã bị xóa mềm (DÙNG NATIVE QUERY)
+    @Query(value = "SELECT * FROM events e WHERE e.id = :id AND e.deleted_at IS NOT NULL", nativeQuery = true)
     Optional<Event> findSoftDeletedById(@Param("id") Long id);
 
-    // 3. Xóa VĨNH VIỄN (bỏ qua @SQLDelete)
+    // 3. Xóa VĨNH VIỄN (DÙNG NATIVE QUERY)
     @Modifying
-    @Query("DELETE FROM Event e WHERE e.id = :id")
+    @Query(value = "DELETE FROM events WHERE id = :id", nativeQuery = true)
     void permanentDelete(@Param("id") Long id);
 }

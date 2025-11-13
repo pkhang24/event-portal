@@ -90,11 +90,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/registrations").hasAuthority(Role.STUDENT.name())
 
                         // --- CÁC ENDPOINT CỦA POSTER ---
-                        .requestMatchers(HttpMethod.POST, "/api/events").hasAuthority(Role.POSTER.name())
-                        .requestMatchers(HttpMethod.PUT, "/api/events/**").hasAuthority(Role.POSTER.name())
+                        .requestMatchers(HttpMethod.POST, "/api/events").hasAnyAuthority(Role.POSTER.name(), Role.ADMIN.name())
+                        .requestMatchers(HttpMethod.PUT, "/api/events/**").hasAnyAuthority(Role.POSTER.name(), Role.ADMIN.name())
                         .requestMatchers("/api/registrations/check-in").hasAnyAuthority(Role.POSTER.name(), Role.ADMIN.name())
                         // Trong SecurityConfig.java, thêm vào mục POSTER:
-                        .requestMatchers(HttpMethod.GET, "/api/events/my-events").hasAuthority(Role.POSTER.name())
+                        .requestMatchers(HttpMethod.GET, "/api/events/my-events").hasAnyAuthority(Role.POSTER.name(), Role.ADMIN.name())
 
                         // --- CÁC ENDPOINT CỦA ADMIN ---
                         .requestMatchers("/api/admin/**").hasAuthority(Role.ADMIN.name())

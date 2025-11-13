@@ -1,9 +1,7 @@
 package com.faculty.event.event_portal.service;
 
-import com.faculty.event.event_portal.dto.CreateUserRequest;
-import com.faculty.event.event_portal.dto.EventResponse;
-import com.faculty.event.event_portal.dto.UpdateProfileRequest;
-import com.faculty.event.event_portal.dto.UserResponse;
+import com.faculty.event.event_portal.dto.*;
+
 import java.util.List;
 import java.util.Map;
 
@@ -11,6 +9,7 @@ public interface AdminService {
     // 1. Quản lý User
     List<UserResponse> getAllUsers();
     List<EventResponse> getAllEventsForAdmin();
+    void changePassword(String userEmail, ChangePasswordRequest request);
     // --- User Recycle Bin ---
     List<UserResponse> getDeletedUsers();
     void restoreUser(Long userId);
@@ -25,6 +24,7 @@ public interface AdminService {
     UserResponse createUser(CreateUserRequest request);
     UserResponse getMyProfile(String userEmail);
     UserResponse updateMyProfile(String userEmail, UpdateProfileRequest request);
+    UserResponse updateUser(Long userId, UpdateUserRequest request);
 
     // 2. Quản lý Sự kiện (Duyệt bài)
     void approveEvent(Long eventId);

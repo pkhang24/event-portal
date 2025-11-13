@@ -1,9 +1,6 @@
 package com.faculty.event.event_portal.service.impl;
 
-import com.faculty.event.event_portal.dto.CreateUserRequest;
-import com.faculty.event.event_portal.dto.EventResponse;
-import com.faculty.event.event_portal.dto.UpdateProfileRequest;
-import com.faculty.event.event_portal.dto.UserResponse;
+import com.faculty.event.event_portal.dto.*;
 import com.faculty.event.event_portal.entity.Event;
 import com.faculty.event.event_portal.entity.EventStatus;
 import com.faculty.event.event_portal.entity.Role;
@@ -69,6 +66,10 @@ public class AdminServiceImpl implements AdminService {
         response.setEmail(user.getEmail());
         response.setMssv(user.getMssv());
         response.setRole(user.getRole().name());
+        response.setSoDienThoai(user.getSoDienThoai());
+        response.setKhoa(user.getKhoa());
+        response.setLopHoc(user.getLopHoc());
+        response.setNganhHoc(user.getNganhHoc());
         response.setCreatedAt(user.getCreatedAt());
         return response;
     }
@@ -108,6 +109,23 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    public UserResponse updateUser(Long userId, UpdateUserRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy user"));
+
+        // Cập nhật các trường
+        user.setHoTen(request.getHoTen());
+        user.setMssv(request.getMssv());
+        user.setSoDienThoai(request.getSoDienThoai());
+        user.setNganhHoc(request.getNganhHoc());
+        user.setLopHoc(request.getLopHoc());
+        user.setKhoa(request.getKhoa());
+
+        User updatedUser = userRepository.save(user);
+        return convertToUserResponse(updatedUser);
+    }
+
+    @Override
     public UserResponse updateUserRole(Long userId, String newRoleName) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy user"));
@@ -119,6 +137,22 @@ public class AdminServiceImpl implements AdminService {
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Role không hợp lệ: " + newRoleName);
         }
+    }
+
+    @Override
+    @Transactional
+    public void changePassword(String userEmail, ChangePasswordRequest request) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy người dùng"));
+
+        // 1. Kiểm tra mật khẩu cũ có khớp không
+        if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
+            throw new IllegalArgumentException("Mật khẩu cũ không chính xác");
+        }
+
+        // 2. Mã hóa và cập nhật mật khẩu mới
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
     }
 
     @Override

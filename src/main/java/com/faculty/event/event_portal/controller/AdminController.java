@@ -1,13 +1,11 @@
 package com.faculty.event.event_portal.controller;
 
-import com.faculty.event.event_portal.dto.CreateUserRequest;
-import com.faculty.event.event_portal.dto.EventResponse;
-import com.faculty.event.event_portal.dto.UpdateRoleRequest;
-import com.faculty.event.event_portal.dto.UserResponse;
+import com.faculty.event.event_portal.dto.*;
 import com.faculty.event.event_portal.entity.Banner;
 import com.faculty.event.event_portal.service.AdminService;
 import com.faculty.event.event_portal.service.BannerService;
 import com.faculty.event.event_portal.service.EventService;
+import com.faculty.event.event_portal.repository.UserRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,14 +22,18 @@ public class AdminController {
     private final EventService eventService;
     // Inject BannerService vào
     private final BannerService bannerService;
+    // Inject UserRepository
+    private final UserRepository userRepository;
 
     // Cập nhật constructor
     public AdminController(AdminService adminService,
                            EventService eventService,
-                           BannerService bannerService) { // Thêm
+                           BannerService bannerService,
+                           UserRepository userRepository) { // Thêm
         this.adminService = adminService;
         this.eventService = eventService;
         this.bannerService = bannerService; // Thêm
+        this.userRepository = userRepository;
     }
 
     // --- 1. QUẢN LÝ USER ---
@@ -54,6 +56,21 @@ public class AdminController {
     public ResponseEntity<UserResponse> updateUserRole(@PathVariable Long id,
                                                        @RequestBody UpdateRoleRequest request) {
         return ResponseEntity.ok(adminService.updateUserRole(id, request.getRole()));
+    }
+
+    // PUT /api/admin/users/{id}
+    @PutMapping("/users/{id}")
+    public ResponseEntity<UserResponse> updateUser(@PathVariable Long id, @RequestBody UpdateUserRequest request) {
+        return ResponseEntity.ok(adminService.updateUser(id, request));
+    }
+
+    //
+    @DeleteMapping("/users/{id}")
+    public ResponseEntity<Void> softDeleteUser(@PathVariable Long id) {
+        // Gọi thẳng vào repository vì @SQLDelete sẽ xử lý
+        // (Hoặc bạn có thể tạo hàm trong Service)
+        userRepository.deleteById(id);
+        return ResponseEntity.noContent().build();
     }
 
     // --- 2. QUẢN LÝ SỰ KIỆN ---
