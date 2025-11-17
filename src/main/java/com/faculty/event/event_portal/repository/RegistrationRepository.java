@@ -21,6 +21,8 @@ public interface RegistrationRepository extends JpaRepository<Registration, Long
     // Tìm tất cả vé của 1 sinh viên
     List<Registration> findAllByUser(User user);
 
+    List<Registration> findAllByEvent(Event event);
+
     // Kiểm tra xem sinh viên đã đăng ký sự kiện này chưa
     boolean existsByUserAndEvent(User user, Event event);
 
@@ -35,4 +37,10 @@ public interface RegistrationRepository extends JpaRepository<Registration, Long
             "AND r.trangThai = com.faculty.event.event_portal.entity.RegistrationStatus.ATTENDED " +
             "AND r.event.thoiGianKetThuc < :now")
     List<Registration> findHistoryByUser(@Param("user") User user, @Param("now") LocalDateTime now);
+
+    // Lấy tất cả các vé (Registrations) của sự kiện CHƯA KẾT THÚC
+    @Query("SELECT r FROM Registration r " +
+            "WHERE r.user = :user " +
+            "AND r.event.thoiGianKetThuc > :now")
+    List<Registration> findActiveRegistrationsByUser(@Param("user") User user, @Param("now") LocalDateTime now);
 }

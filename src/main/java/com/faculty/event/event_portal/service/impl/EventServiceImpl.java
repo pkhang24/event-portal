@@ -2,14 +2,9 @@ package com.faculty.event.event_portal.service.impl;
 
 import com.faculty.event.event_portal.dto.EventRequest;
 import com.faculty.event.event_portal.dto.EventResponse;
-import com.faculty.event.event_portal.entity.Event;
-import com.faculty.event.event_portal.entity.EventStatus;
-import com.faculty.event.event_portal.entity.Role;
-import com.faculty.event.event_portal.entity.User;
-import com.faculty.event.event_portal.repository.EventRepository;
-import com.faculty.event.event_portal.repository.EventSpecification;
-import com.faculty.event.event_portal.repository.RegistrationRepository;
-import com.faculty.event.event_portal.repository.UserRepository;
+import com.faculty.event.event_portal.dto.ParticipantResponse;
+import com.faculty.event.event_portal.entity.*;
+import com.faculty.event.event_portal.repository.*;
 import com.faculty.event.event_portal.service.EventService;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.data.domain.Sort;
@@ -18,8 +13,16 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 
 @Service
 public class EventServiceImpl implements EventService {
@@ -27,14 +30,17 @@ public class EventServiceImpl implements EventService {
     private final EventRepository eventRepository;
     private final UserRepository userRepository;
     private final RegistrationRepository registrationRepository; // Inject thêm cái này
+    private final CategoryRepository categoryRepository;
 
 
     public EventServiceImpl(EventRepository eventRepository,
                             UserRepository userRepository,
-                            RegistrationRepository registrationRepository) { // Cập nhật constructor
+                            RegistrationRepository registrationRepository,
+                            CategoryRepository categoryRepository) { // Cập nhật constructor
         this.eventRepository = eventRepository;
         this.userRepository = userRepository;
         this.registrationRepository = registrationRepository; // Gán giá trị
+        this.categoryRepository = categoryRepository;
     }
 
     // --- Hàm helper để chuyển Entity -> DTO ---
@@ -58,8 +64,8 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
-    public List<EventResponse> getAllPublishedEvents(String search, String status) {
-        Specification<Event> spec = EventSpecification.findByCriteria(search, status);
+    public List<EventResponse> getAllPublishedEvents(String search, String status, Long categoryId) {
+        Specification<Event> spec = EventSpecification.findByCriteria(search, status, categoryId);
 
         // Sắp xếp theo ngày bắt đầu tăng dần
         Sort sort = Sort.by(Sort.Direction.ASC, "thoiGianBatDau");
@@ -119,6 +125,12 @@ public class EventServiceImpl implements EventService {
         event.setNguoiDang(poster); // Gán người tạo
         event.setTrangThai(EventStatus.DRAFT); // Mặc định là bản nháp, ADMIN sẽ duyệt sau
 
+        if (request.getCategoryId() != null) {
+            Category category = categoryRepository.findById(request.getCategoryId())
+                    .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy Danh mục (Category) với ID: " + request.getCategoryId()));
+            event.setCategory(category); // Gán đối tượng Category đã tìm được
+        }
+
         // 3. Lưu vào CSDL
         Event savedEvent = eventRepository.save(event);
 
@@ -149,6 +161,14 @@ public class EventServiceImpl implements EventService {
         event.setThoiGianKetThuc(request.getThoiGianKetThuc());
         event.setDiaDiem(request.getDiaDiem());
         event.setSoLuongGioiHan(request.getSoLuongGioiHan());
+
+        if (request.getCategoryId() != null) {
+            Category category = categoryRepository.findById(request.getCategoryId())
+                    .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy Danh mục (Category) với ID: " + request.getCategoryId()));
+            event.setCategory(category);
+        } else {
+            event.setCategory(null); // Cho phép gỡ bỏ category
+        }
 
         Event updatedEvent = eventRepository.save(event);
         return convertToResponse(updatedEvent, false);
@@ -184,5 +204,75 @@ public class EventServiceImpl implements EventService {
                 // Khi poster xem sự kiện của mình, không cần check "isRegistered"
                 .map(event -> convertToResponse(event, false))
                 .collect(Collectors.toList());
+    }
+
+    // Import thêm: java.util.ArrayList, com.faculty.event.event_portal.dto.ParticipantResponse
+    @Override
+    public List<ParticipantResponse> getEventParticipants(Long eventId, String posterEmail) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy sự kiện"));
+        User poster = userRepository.findByEmail(posterEmail)
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy người dùng"));
+
+        // Kiểm tra: Chỉ chủ sự kiện hoặc Admin mới được xem
+        if (!event.getNguoiDang().getId().equals(poster.getId()) && poster.getRole() != Role.ADMIN) {
+            throw new AccessDeniedException("Bạn không có quyền xem danh sách này");
+        }
+
+        // Lấy tất cả vé của sự kiện này
+        List<Registration> registrations = registrationRepository.findAllByEvent(event);
+
+        List<ParticipantResponse> participants = new ArrayList<>();
+        for (Registration reg : registrations) {
+            User student = reg.getUser();
+            ParticipantResponse dto = new ParticipantResponse();
+            dto.setUserId(student.getId());
+            dto.setHoTen(student.getHoTen());
+            dto.setMssv(student.getMssv());
+            dto.setEmail(student.getEmail());
+            dto.setLopHoc(student.getLopHoc());
+            dto.setTrangThaiVe(reg.getTrangThai().name());
+            dto.setThoiGianDangKy(reg.getCreatedAt());
+            participants.add(dto);
+        }
+        return participants;
+    }
+
+    @Override
+    public byte[] exportEventParticipantsToExcel(Long eventId, String posterEmail) throws IOException {
+        // 1. Lấy dữ liệu (tái sử dụng hàm trên)
+        List<ParticipantResponse> participants = getEventParticipants(eventId, posterEmail);
+
+        // 2. Tạo file Excel trong bộ nhớ
+        XSSFWorkbook workbook = new XSSFWorkbook();
+        XSSFSheet sheet = workbook.createSheet("Danh sach tham gia");
+
+        // 3. Tạo hàng tiêu đề (Header)
+        String[] HEADERS = {"STT", "Họ tên", "MSSV", "Email", "Lớp", "Trạng thái vé", "Thời gian ĐK"};
+        Row headerRow = sheet.createRow(0);
+        for (int i = 0; i < HEADERS.length; i++) {
+            Cell cell = headerRow.createCell(i);
+            cell.setCellValue(HEADERS[i]);
+        }
+
+        // 4. Đổ dữ liệu
+        int rowNum = 1;
+        for (ParticipantResponse p : participants) {
+            Row row = sheet.createRow(rowNum++);
+            row.createCell(0).setCellValue(rowNum - 1);
+            row.createCell(1).setCellValue(p.getHoTen());
+            row.createCell(2).setCellValue(p.getMssv());
+            row.createCell(3).setCellValue(p.getEmail());
+            row.createCell(4).setCellValue(p.getLopHoc());
+            row.createCell(5).setCellValue(p.getTrangThaiVe().equals("ATTENDED") ? "Đã điểm danh" : "Chưa điểm danh");
+            row.createCell(6).setCellValue(p.getThoiGianDangKy().toString()); // Cần format đẹp hơn
+        }
+
+        // 5. Ghi vào output stream
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        workbook.write(outputStream);
+        workbook.close();
+
+        return outputStream.toByteArray();
     }
 }

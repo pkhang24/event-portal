@@ -1,10 +1,8 @@
 package com.faculty.event.event_portal.service.impl;
 
 import com.faculty.event.event_portal.dto.*;
-import com.faculty.event.event_portal.entity.Event;
-import com.faculty.event.event_portal.entity.EventStatus;
-import com.faculty.event.event_portal.entity.Role;
-import com.faculty.event.event_portal.entity.User;
+import com.faculty.event.event_portal.entity.*;
+import com.faculty.event.event_portal.repository.CategoryRepository;
 import com.faculty.event.event_portal.repository.EventRepository;
 import com.faculty.event.event_portal.repository.RegistrationRepository;
 import com.faculty.event.event_portal.repository.UserRepository;
@@ -27,6 +25,7 @@ public class AdminServiceImpl implements AdminService {
     private final UserRepository userRepository;
     private final EventRepository eventRepository;
     private final RegistrationRepository registrationRepository;
+    private final CategoryRepository categoryRepository;
     // Inject PasswordEncoder vào constructor của AdminServiceImpl
     private final PasswordEncoder passwordEncoder;
     private EventResponse convertToResponse(Event event, Boolean isRegistered) {
@@ -52,10 +51,12 @@ public class AdminServiceImpl implements AdminService {
     public AdminServiceImpl(UserRepository userRepository,
                             EventRepository eventRepository,
                             RegistrationRepository registrationRepository,
+                            CategoryRepository categoryRepository,
                             PasswordEncoder passwordEncoder) { // Thêm
         this.userRepository = userRepository;
         this.eventRepository = eventRepository;
         this.registrationRepository = registrationRepository;
+        this.categoryRepository = categoryRepository;
         this.passwordEncoder = passwordEncoder; // Thêm
     }
 
@@ -204,6 +205,31 @@ public class AdminServiceImpl implements AdminService {
         return events.stream()
                 .map(event -> convertToResponse(event, false)) // Dùng lại hàm convert
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Category> getAllCategories() {
+        return categoryRepository.findAll();
+    }
+
+    @Override
+    public Category createCategory(Category category) {
+        return categoryRepository.save(category);
+    }
+
+    @Override
+    public Category updateCategory(Long id, Category categoryDetails) {
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy danh mục"));
+        category.setTenDanhMuc(categoryDetails.getTenDanhMuc());
+        return categoryRepository.save(category);
+    }
+
+    @Override
+    public void deleteCategory(Long id) {
+        // (Cần kiểm tra xem có sự kiện nào đang dùng danh mục này không trước khi xóa)
+        // Tạm thời cho phép xóa
+        categoryRepository.deleteById(id);
     }
 
 

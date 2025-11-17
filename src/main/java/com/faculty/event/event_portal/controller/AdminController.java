@@ -2,6 +2,7 @@ package com.faculty.event.event_portal.controller;
 
 import com.faculty.event.event_portal.dto.*;
 import com.faculty.event.event_portal.entity.Banner;
+import com.faculty.event.event_portal.entity.Category;
 import com.faculty.event.event_portal.service.AdminService;
 import com.faculty.event.event_portal.service.BannerService;
 import com.faculty.event.event_portal.service.EventService;
@@ -80,6 +81,28 @@ public class AdminController {
     public ResponseEntity<Void> approveEvent(@PathVariable Long id) {
         adminService.approveEvent(id);
         return ResponseEntity.ok().build();
+    }
+
+    // --- QUẢN LÝ CATEGORY ---
+    @GetMapping("/categories")
+    public ResponseEntity<List<Category>> getAllCategories() {
+        return ResponseEntity.ok(adminService.getAllCategories());
+    }
+
+    @PostMapping("/categories")
+    public ResponseEntity<Category> createCategory(@RequestBody Category category) {
+        return ResponseEntity.status(201).body(adminService.createCategory(category));
+    }
+
+    @PutMapping("/categories/{id}")
+    public ResponseEntity<Category> updateCategory(@PathVariable Long id, @RequestBody Category categoryDetails) {
+        return ResponseEntity.ok(adminService.updateCategory(id, categoryDetails));
+    }
+
+    @DeleteMapping("/categories/{id}")
+    public ResponseEntity<Void> deleteCategory(@PathVariable Long id) {
+        adminService.deleteCategory(id);
+        return ResponseEntity.noContent().build();
     }
 
     // (Admin có thể dùng DELETE /api/events/{id} của EventController để xóa sự kiện)

@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 
 public class EventSpecification {
 
-    public static Specification<Event> findByCriteria(String search, String status) {
+    public static Specification<Event> findByCriteria(String search, String status, Long categoryId) {
         return (root, query, criteriaBuilder) -> {
             Predicate predicate = criteriaBuilder.conjunction();
 
@@ -36,6 +36,12 @@ public class EventSpecification {
                         criteriaBuilder.greaterThan(root.get("thoiGianBatDau"), now));
             }
             // (Nếu status = null, lấy tất cả)
+
+            // 3. Lọc theo Category ID
+            if (categoryId != null) {
+                predicate = criteriaBuilder.and(predicate,
+                        criteriaBuilder.equal(root.get("category").get("id"), categoryId));
+            }
 
             return predicate;
         };

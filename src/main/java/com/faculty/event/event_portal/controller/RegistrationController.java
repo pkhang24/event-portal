@@ -60,4 +60,14 @@ public class RegistrationController {
         List<TicketResponse> history = registrationService.getMyHistory(studentEmail);
         return ResponseEntity.ok(history);
     }
+
+    // API 5: (Student) Hủy đăng ký vé
+    // DELETE http://localhost:8080/api/registrations/{id}
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> cancelRegistration(@PathVariable("id") Long registrationId,
+                                                   Authentication authentication) {
+        String studentEmail = authentication.getName();
+        registrationService.cancelRegistration(registrationId, studentEmail);
+        return ResponseEntity.noContent().build(); // Trả về 204 No Content
+    }
 }

@@ -72,4 +72,8 @@ public class Event {
     protected void onCreate() {
         createdAt = LocalDateTime.now();
     }
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id", nullable = true) // Cho phép null nếu chưa phân loại
+    private Category category;
 }

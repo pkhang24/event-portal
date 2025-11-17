@@ -2,11 +2,16 @@ package com.faculty.event.event_portal.controller;
 
 import com.faculty.event.event_portal.dto.EventRequest;
 import com.faculty.event.event_portal.dto.EventResponse;
+import com.faculty.event.event_portal.dto.ParticipantResponse;
 import com.faculty.event.event_portal.service.EventService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.RequestParam;
 
+import java.io.IOException;
 import java.util.List;
 
 @RestController
@@ -24,9 +29,10 @@ public class EventController {
     @GetMapping
     public ResponseEntity<List<EventResponse>> getAllPublishedEvents(
             @RequestParam(required = false) String search,
-            @RequestParam(required = false) String status
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Long categoryId
     ) {
-        List<EventResponse> events = eventService.getAllPublishedEvents(search, status);
+        List<EventResponse> events = eventService.getAllPublishedEvents(search, status, categoryId);
         return ResponseEntity.ok(events);
     }
 
@@ -77,5 +83,32 @@ public class EventController {
         String email = authentication.getName();
         List<EventResponse> events = eventService.getMyEvents(email);
         return ResponseEntity.ok(events);
+    }
+
+    // API 7: (Poster/Admin) Lấy danh sách SV tham gia
+    // GET /api/events/{id}/participants
+    @GetMapping("/{id}/participants")
+    public ResponseEntity<List<ParticipantResponse>> getParticipants(@PathVariable Long id, Authentication auth) {
+        List<ParticipantResponse> participants = eventService.getEventParticipants(id, auth.getName());
+        return ResponseEntity.ok(participants);
+    }
+
+    // API 8: (Poster/Admin) Xuất Excel danh sách SV
+    // GET /api/events/{id}/participants/export
+    @GetMapping("/{id}/participants/export")
+    public ResponseEntity<byte[]> exportParticipants(@PathVariable Long id, Authentication auth) {
+        try {
+            byte[] excelData = eventService.exportEventParticipantsToExcel(id, auth.getName());
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+            headers.setContentDispositionFormData("attachment", "danh-sach-tham-gia.xlsx");
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(excelData);
+        } catch (IOException e) {
+            return ResponseEntity.status(500).build();
+        }
     }
 }

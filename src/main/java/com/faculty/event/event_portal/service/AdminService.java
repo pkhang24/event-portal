@@ -1,6 +1,7 @@
 package com.faculty.event.event_portal.service;
 
 import com.faculty.event.event_portal.dto.*;
+import com.faculty.event.event_portal.entity.Category;
 
 import java.util.List;
 import java.util.Map;
@@ -33,4 +34,9 @@ public interface AdminService {
     Map<String, Long> getDashboardStats();
 
     Map<String, Long> getEventRegistrationStats(); // Thống kê lượt đăng ký sự kiện
+
+    List<Category> getAllCategories();
+    Category createCategory(Category category);
+    Category updateCategory(Long id, Category categoryDetails);
+    void deleteCategory(Long id);
 }

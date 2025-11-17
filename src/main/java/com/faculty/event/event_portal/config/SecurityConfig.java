@@ -84,10 +84,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/events/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/banners/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "*/api/profile/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
 
                         // --- CÁC ENDPOINT CỦA STUDENT ---
                         .requestMatchers("/api/registrations/my-tickets").hasAuthority(Role.STUDENT.name())
                         .requestMatchers(HttpMethod.POST, "/api/registrations").hasAuthority(Role.STUDENT.name())
+                        .requestMatchers(HttpMethod.DELETE, "/api/registrations/**").hasAuthority(Role.STUDENT.name())
 
                         // --- CÁC ENDPOINT CỦA POSTER ---
                         .requestMatchers(HttpMethod.POST, "/api/events").hasAnyAuthority(Role.POSTER.name(), Role.ADMIN.name())
