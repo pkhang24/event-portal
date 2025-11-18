@@ -6,6 +6,7 @@ import com.faculty.event.event_portal.service.BannerService;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -27,12 +28,12 @@ public class BannerServiceImpl implements BannerService {
     // --- Admin ---
     @Override
     public List<Banner> getAllBanners() {
+        // Chỉ lấy chưa xóa
         return bannerRepository.findAll();
     }
 
     @Override
     public Banner createBanner(Banner banner) {
-        // Gán giá trị mặc định nếu cần
         banner.setActive(true);
         return bannerRepository.save(banner);
     }
@@ -44,7 +45,7 @@ public class BannerServiceImpl implements BannerService {
 
         banner.setImageUrl(bannerDetails.getImageUrl());
         banner.setLinkUrl(bannerDetails.getLinkUrl());
-        banner.setActive(bannerDetails.isActive()); // Cập nhật cả trạng thái
+        banner.setActive(bannerDetails.isActive());
 
         return bannerRepository.save(banner);
     }
@@ -52,9 +53,11 @@ public class BannerServiceImpl implements BannerService {
     @Override
     public void deleteBanner(Long id) {
         Banner banner = bannerRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy Banner"));
-        bannerRepository.delete(banner);
-        // Banner không cần soft-delete, xóa vĩnh viễn là được
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy banner"));
+        // Soft Delete thủ công
+        banner.setDeletedAt(LocalDateTime.now());
+        banner.setActive(false);
+        bannerRepository.save(banner);
     }
 
     @Override

@@ -1,8 +1,10 @@
 package com.faculty.event.event_portal.service;
 
 import com.faculty.event.event_portal.dto.*;
+import com.faculty.event.event_portal.entity.Banner;
 import com.faculty.event.event_portal.entity.Category;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -21,6 +23,16 @@ public interface AdminService {
     void restoreEvent(Long eventId);
     void permanentDeleteEvent(Long eventId);
 
+    // Danh mục
+    List<Category> getDeletedCategories();
+    Category restoreCategory(Long id);
+    void hardDeleteCategory(Long id);
+
+    // Banner
+    List<Banner> getDeletedBanners();
+    Banner restoreBanner(Long id);
+    void hardDeleteBanner(Long id);
+
     UserResponse updateUserRole(Long userId, String newRoleName);
     UserResponse createUser(CreateUserRequest request);
     UserResponse getMyProfile(String userEmail);
@@ -34,6 +46,16 @@ public interface AdminService {
     Map<String, Long> getDashboardStats();
 
     Map<String, Long> getEventRegistrationStats(); // Thống kê lượt đăng ký sự kiện
+
+    Map<Integer, Long> getMonthlyEventStats(int year);
+
+    Map<String, Long> getTopCategoryStats();
+
+    // Lấy thống kê sự kiện (có lọc)
+    Map<String, Long> getTopEventStats(int year, int month);
+
+    // Xuất báo cáo Excel cho sự kiện
+    byte[] exportEventsToExcel() throws IOException;
 
     List<Category> getAllCategories();
     Category createCategory(Category category);

@@ -2,17 +2,20 @@ package com.faculty.event.event_portal.service.impl;
 
 import com.faculty.event.event_portal.dto.*;
 import com.faculty.event.event_portal.entity.*;
-import com.faculty.event.event_portal.repository.CategoryRepository;
-import com.faculty.event.event_portal.repository.EventRepository;
-import com.faculty.event.event_portal.repository.RegistrationRepository;
-import com.faculty.event.event_portal.repository.UserRepository;
+import com.faculty.event.event_portal.repository.*;
 import com.faculty.event.event_portal.service.AdminService;
 import jakarta.persistence.EntityNotFoundException;
+import org.apache.commons.io.output.ByteArrayOutputStream;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +29,7 @@ public class AdminServiceImpl implements AdminService {
     private final EventRepository eventRepository;
     private final RegistrationRepository registrationRepository;
     private final CategoryRepository categoryRepository;
+    private final BannerRepository bannerRepository;
     // Inject PasswordEncoder vào constructor của AdminServiceImpl
     private final PasswordEncoder passwordEncoder;
     private EventResponse convertToResponse(Event event, Boolean isRegistered) {
@@ -52,11 +56,13 @@ public class AdminServiceImpl implements AdminService {
                             EventRepository eventRepository,
                             RegistrationRepository registrationRepository,
                             CategoryRepository categoryRepository,
+                            BannerRepository bannerRepository,
                             PasswordEncoder passwordEncoder) { // Thêm
         this.userRepository = userRepository;
         this.eventRepository = eventRepository;
         this.registrationRepository = registrationRepository;
         this.categoryRepository = categoryRepository;
+        this.bannerRepository = bannerRepository;
         this.passwordEncoder = passwordEncoder; // Thêm
     }
 
@@ -208,7 +214,95 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    public Map<String, Long> getTopEventStats(int year, int month) {
+        // Xác định khoảng thời gian
+        LocalDateTime startDate;
+        LocalDateTime endDate;
+
+        if (month > 0 && month <= 12) {
+            // Lọc theo tháng
+            startDate = LocalDateTime.of(year, month, 1, 0, 0);
+            endDate = startDate.plusMonths(1).minusNanos(1);
+        } else {
+            // Lọc theo cả năm
+            startDate = LocalDateTime.of(year, 1, 1, 0, 0);
+            endDate = startDate.plusYears(1).minusNanos(1);
+        }
+
+        List<Object[]> results = eventRepository.findTopEventsByRegistrationInDateRange(startDate, endDate);
+
+        Map<String, Long> stats = new LinkedHashMap<>();
+        for (Object[] result : results) {
+            stats.put((String) result[0], (Long) result[1]);
+        }
+        return stats;
+    }
+
+    @Override
+    public Map<Integer, Long> getMonthlyEventStats(int year) {
+        List<Object[]> results = eventRepository.countEventsByMonth(year);
+        // Khởi tạo map đủ 12 tháng với giá trị 0
+        Map<Integer, Long> stats = new LinkedHashMap<>();
+        for (int i = 1; i <= 12; i++) {
+            stats.put(i, 0L);
+        }
+        // Điền dữ liệu thực tế vào
+        for (Object[] row : results) {
+            stats.put((Integer) row[0], (Long) row[1]);
+        }
+        return stats;
+    }
+
+    @Override
+    public Map<String, Long> getTopCategoryStats() {
+        List<Object[]> results = registrationRepository.findTopCategoriesByParticipation();
+        Map<String, Long> stats = new LinkedHashMap<>();
+        for (Object[] row : results) {
+            stats.put((String) row[0], (Long) row[1]);
+        }
+        return stats;
+    }
+
+    @Override
+    public byte[] exportEventsToExcel() throws IOException {
+        // Lấy tất cả sự kiện (chưa bị xóa)
+        List<Event> events = eventRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        XSSFWorkbook workbook = new XSSFWorkbook();
+        XSSFSheet sheet = workbook.createSheet("Danh sách Sự kiện");
+
+        // Tiêu đề
+        String[] HEADERS = {"ID", "Tiêu đề", "Trạng thái", "Người tạo", "Ngày bắt đầu", "Địa điểm", "Số lượng ĐK"};
+        Row headerRow = sheet.createRow(0);
+        for (int i = 0; i < HEADERS.length; i++) {
+            headerRow.createCell(i).setCellValue(HEADERS[i]);
+        }
+
+        // Đổ dữ liệu
+        int rowNum = 1;
+        for (Event event : events) {
+            Row row = sheet.createRow(rowNum++);
+            row.createCell(0).setCellValue(event.getId());
+            row.createCell(1).setCellValue(event.getTieuDe());
+            row.createCell(2).setCellValue(event.getTrangThai().name());
+            row.createCell(3).setCellValue(event.getNguoiDang().getHoTen());
+            row.createCell(4).setCellValue(event.getThoiGianBatDau().toString()); // Cần format
+            row.createCell(5).setCellValue(event.getDiaDiem());
+            // Đếm số lượng đăng ký cho sự kiện này
+            long registrationCount = registrationRepository.countByEvent(event);
+            row.createCell(6).setCellValue(registrationCount);
+        }
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        workbook.write(outputStream);
+        workbook.close();
+
+        return outputStream.toByteArray();
+    }
+
+    @Override
     public List<Category> getAllCategories() {
+        // Chỉ lấy chưa xóa
         return categoryRepository.findAll();
     }
 
@@ -227,11 +321,12 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     public void deleteCategory(Long id) {
-        // (Cần kiểm tra xem có sự kiện nào đang dùng danh mục này không trước khi xóa)
-        // Tạm thời cho phép xóa
-        categoryRepository.deleteById(id);
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy danh mục"));
+        // Soft Delete thủ công
+        category.setDeletedAt(LocalDateTime.now());
+        categoryRepository.save(category);
     }
-
 
     // --- User Recycle Bin ---
 
@@ -267,7 +362,7 @@ public class AdminServiceImpl implements AdminService {
         userRepository.permanentDelete(userId); // Gọi hàm xóa vĩnh viễn
     }
 
-// --- Event Recycle Bin ---
+    // --- Event Recycle Bin ---
 
     @Override
     public List<EventResponse> getDeletedEvents() {
@@ -297,6 +392,40 @@ public class AdminServiceImpl implements AdminService {
         }
 
         eventRepository.permanentDelete(eventId);
+    }
+
+    // 3. Category Trash (Bổ sung)
+    @Override
+    public List<Category> getDeletedCategories() {
+        return categoryRepository.findSoftDeleted();
+    }
+
+    @Override
+    public Category restoreCategory(Long id) {
+        categoryRepository.restoreCategory(id);
+        return categoryRepository.findById(id).orElse(null);
+    }
+
+    @Override
+    public void hardDeleteCategory(Long id) {
+        categoryRepository.permanentDelete(id);
+    }
+
+    // 4. Banner Trash (Bổ sung)
+    @Override
+    public List<Banner> getDeletedBanners() {
+        return bannerRepository.findSoftDeleted();
+    }
+
+    @Override
+    public Banner restoreBanner(Long id) {
+        bannerRepository.restoreBanner(id);
+        return bannerRepository.findById(id).orElse(null);
+    }
+
+    @Override
+    public void hardDeleteBanner(Long id) {
+        bannerRepository.permanentDelete(id);
     }
 
     @Override

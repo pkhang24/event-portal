@@ -10,6 +10,8 @@ import org.springframework.data.jpa.domain.Specification; // Import mới
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor; // Import mới
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.repository.query.Param;
+
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -29,6 +31,29 @@ public interface EventRepository extends JpaRepository<Event, Long>, JpaSpecific
             "ORDER BY luotDangKy DESC " +
             "LIMIT 5")
     List<Object[]> findTop5EventsByRegistration();
+
+    // Lấy Top sự kiện (đã PUBLISHED) có nhiều lượt đăng ký nhất trong một khoảng thời gian
+    @Query("SELECT e.tieuDe, COUNT(r.id) as luotDangKy " +
+            "FROM Event e " +
+            "JOIN Registration r ON e.id = r.event.id " +
+            "WHERE e.trangThai = com.faculty.event.event_portal.entity.EventStatus.PUBLISHED " +
+            "AND e.thoiGianBatDau BETWEEN :startDate AND :endDate " +
+            "GROUP BY e.id " +
+            "ORDER BY luotDangKy DESC")
+    List<Object[]> findTopEventsByRegistrationInDateRange(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
+
+    // Thống kê số lượng sự kiện theo từng tháng trong năm (Chỉ tính PUBLISHED)
+    // Trả về: [Tháng (Integer), Số lượng (Long)]
+    @Query("SELECT EXTRACT(MONTH FROM e.thoiGianBatDau), COUNT(e.id) " +
+            "FROM Event e " +
+            "WHERE e.trangThai = com.faculty.event.event_portal.entity.EventStatus.PUBLISHED " +
+            "AND EXTRACT(YEAR FROM e.thoiGianBatDau) = :year " + // Sửa chỗ này
+            "GROUP BY EXTRACT(MONTH FROM e.thoiGianBatDau) " + // Sửa chỗ này
+            "ORDER BY 1 ASC")
+    List<Object[]> countEventsByMonth(@Param("year") int year);
 
     // 1. Tìm tất cả sự kiện đã bị xóa mềm (DÙNG NATIVE QUERY)
     @Query(value = "SELECT * FROM events e WHERE e.deleted_at IS NOT NULL", nativeQuery = true)

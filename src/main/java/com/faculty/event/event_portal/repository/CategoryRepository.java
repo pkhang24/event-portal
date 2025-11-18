@@ -2,8 +2,34 @@ package com.faculty.event.event_portal.repository;
 
 import com.faculty.event.event_portal.entity.Category;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface CategoryRepository extends JpaRepository<Category, Long> {
+    // 1. Tìm thùng rác (Bỏ qua @Where nhờ nativeQuery)
+    @Query(value = "SELECT * FROM categories WHERE deleted_at IS NOT NULL", nativeQuery = true)
+    List<Category> findSoftDeleted();
+
+    // 2. Tìm 1 mục trong thùng rác
+    @Query(value = "SELECT * FROM categories WHERE id = :id AND deleted_at IS NOT NULL", nativeQuery = true)
+    Optional<Category> findSoftDeletedById(@Param("id") Long id);
+
+    // 3. Khôi phục (Set deleted_at = NULL)
+    @Modifying
+    @Transactional
+    @Query(value = "UPDATE categories SET deleted_at = NULL WHERE id = :id", nativeQuery = true)
+    void restoreCategory(@Param("id") Long id);
+
+    // 4. Xóa VĨNH VIỄN (Bỏ qua @SQLDelete nhờ nativeQuery)
+    @Modifying
+    @Transactional
+    @Query(value = "DELETE FROM categories WHERE id = :id", nativeQuery = true)
+    void permanentDelete(@Param("id") Long id);
 }

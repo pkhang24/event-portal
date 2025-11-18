@@ -7,9 +7,12 @@ import com.faculty.event.event_portal.service.AdminService;
 import com.faculty.event.event_portal.service.BannerService;
 import com.faculty.event.event_portal.service.EventService;
 import com.faculty.event.event_portal.repository.UserRepository;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -155,7 +158,7 @@ public class AdminController {
     }
 
     // --- USER TRASH ---
-// GET /api/admin/users/trash
+    // GET /api/admin/users/trash
     @GetMapping("/users/trash")
     public ResponseEntity<List<UserResponse>> getDeletedUsers() {
         return ResponseEntity.ok(adminService.getDeletedUsers());
@@ -176,7 +179,7 @@ public class AdminController {
     }
 
     // --- EVENT TRASH ---
-// GET /api/admin/events/trash
+    // GET /api/admin/events/trash
     @GetMapping("/events/trash")
     public ResponseEntity<List<EventResponse>> getDeletedEvents() {
         return ResponseEntity.ok(adminService.getDeletedEvents());
@@ -194,5 +197,77 @@ public class AdminController {
     public ResponseEntity<Void> permanentDeleteEvent(@PathVariable Long id) {
         adminService.permanentDeleteEvent(id);
         return ResponseEntity.noContent().build();
+    }
+
+    // === Category Trash ===
+    @GetMapping("/categories/trash")
+    public ResponseEntity<List<Category>> getDeletedCategories() {
+        return ResponseEntity.ok(adminService.getDeletedCategories());
+    }
+
+    @PutMapping("/categories/trash/restore/{id}")
+    public ResponseEntity<Category> restoreCategory(@PathVariable Long id) {
+        return ResponseEntity.ok(adminService.restoreCategory(id));
+    }
+
+    @DeleteMapping("/categories/trash/hard-delete/{id}")
+    public ResponseEntity<Void> hardDeleteCategory(@PathVariable Long id) {
+        adminService.hardDeleteCategory(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // === Banner Trash ===
+    @GetMapping("/banners/trash")
+    public ResponseEntity<List<Banner>> getDeletedBanners() {
+        return ResponseEntity.ok(adminService.getDeletedBanners());
+    }
+
+    @PutMapping("/banners/trash/restore/{id}")
+    public ResponseEntity<Banner> restoreBanner(@PathVariable Long id) {
+        return ResponseEntity.ok(adminService.restoreBanner(id));
+    }
+
+    @DeleteMapping("/banners/trash/hard-delete/{id}")
+    public ResponseEntity<Void> hardDeleteBanner(@PathVariable Long id) {
+        adminService.hardDeleteBanner(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // API 6: Lấy thống kê Top sự kiện (theo năm, tháng)
+    // GET /api/admin/stats/top-events?year=2025&month=11
+    @GetMapping("/stats/top-events")
+    public ResponseEntity<Map<String, Long>> getTopEventStats(
+            @RequestParam int year,
+            @RequestParam(required = false, defaultValue = "0") int month) {
+        return ResponseEntity.ok(adminService.getTopEventStats(year, month));
+    }
+
+    // GET /api/admin/stats/monthly-events?year=2025
+    @GetMapping("/stats/monthly-events")
+    public ResponseEntity<Map<Integer, Long>> getMonthlyEventStats(@RequestParam int year) {
+        return ResponseEntity.ok(adminService.getMonthlyEventStats(year));
+    }
+
+    // GET /api/admin/stats/top-categories
+    @GetMapping("/stats/top-categories")
+    public ResponseEntity<Map<String, Long>> getTopCategoryStats() {
+        return ResponseEntity.ok(adminService.getTopCategoryStats());
+    }
+
+    // API 7: Xuất báo cáo Excel
+    // GET /api/admin/report/events-excel
+    @GetMapping("/report/events-excel")
+    public ResponseEntity<byte[]> exportEventsReport() {
+        try {
+            byte[] excelData = adminService.exportEventsToExcel();
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+            headers.setContentDispositionFormData("attachment", "bao-cao-su-kien.xlsx");
+
+            return ResponseEntity.ok().headers(headers).body(excelData);
+        } catch (IOException e) {
+            return ResponseEntity.status(500).build();
+        }
     }
 }

@@ -86,21 +86,23 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "*/api/profile/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
 
+                        // --- CÁC ENDPOINT CỦA ADMIN ---
+                        // Thêm dòng này để test
+                        .requestMatchers("/api/admin/stats/**").hasAuthority(Role.ADMIN.name())
+                        .requestMatchers("/api/admin/**").hasAuthority(Role.ADMIN.name())
+                        .requestMatchers(HttpMethod.DELETE, "/api/events/**").hasAuthority(Role.ADMIN.name())
+
                         // --- CÁC ENDPOINT CỦA STUDENT ---
                         .requestMatchers("/api/registrations/my-tickets").hasAuthority(Role.STUDENT.name())
                         .requestMatchers(HttpMethod.POST, "/api/registrations").hasAuthority(Role.STUDENT.name())
                         .requestMatchers(HttpMethod.DELETE, "/api/registrations/**").hasAuthority(Role.STUDENT.name())
 
                         // --- CÁC ENDPOINT CỦA POSTER ---
-                        .requestMatchers(HttpMethod.POST, "/api/events").hasAnyAuthority(Role.POSTER.name(), Role.ADMIN.name())
-                        .requestMatchers(HttpMethod.PUT, "/api/events/**").hasAnyAuthority(Role.POSTER.name(), Role.ADMIN.name())
-                        .requestMatchers("/api/registrations/check-in").hasAnyAuthority(Role.POSTER.name(), Role.ADMIN.name())
+                        .requestMatchers(HttpMethod.POST, "/api/events").hasAuthority(Role.POSTER.name())
+                        .requestMatchers(HttpMethod.PUT, "/api/events/**").hasAuthority(Role.POSTER.name())
+                        .requestMatchers("/api/registrations/check-in").hasAuthority(Role.POSTER.name())
                         // Trong SecurityConfig.java, thêm vào mục POSTER:
-                        .requestMatchers(HttpMethod.GET, "/api/events/my-events").hasAnyAuthority(Role.POSTER.name(), Role.ADMIN.name())
-
-                        // --- CÁC ENDPOINT CỦA ADMIN ---
-                        .requestMatchers("/api/admin/**").hasAuthority(Role.ADMIN.name())
-                        .requestMatchers(HttpMethod.DELETE, "/api/events/**").hasAuthority(Role.ADMIN.name())
+                        .requestMatchers(HttpMethod.GET, "/api/events/my-events").hasAuthority(Role.POSTER.name())
 
                         // Tất cả các request khác đều cần đăng nhập
                         .anyRequest().authenticated()

@@ -43,4 +43,13 @@ public interface RegistrationRepository extends JpaRepository<Registration, Long
             "WHERE r.user = :user " +
             "AND r.event.thoiGianKetThuc > :now")
     List<Registration> findActiveRegistrationsByUser(@Param("user") User user, @Param("now") LocalDateTime now);
+
+    // Top chủ đề có nhiều lượt tham gia nhất
+    @Query("SELECT c.tenDanhMuc, COUNT(r.id) as luotThamGia " +
+            "FROM Registration r " +
+            "JOIN r.event e " +
+            "JOIN e.category c " +
+            "GROUP BY c.id, c.tenDanhMuc " +
+            "ORDER BY luotThamGia DESC")
+    List<Object[]> findTopCategoriesByParticipation();
 }
