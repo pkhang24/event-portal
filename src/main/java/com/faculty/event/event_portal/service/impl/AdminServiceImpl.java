@@ -91,8 +91,17 @@ public class AdminServiceImpl implements AdminService {
     // Thêm hàm @Override mới
     @Override
     public UserResponse createUser(CreateUserRequest request) {
-        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-            throw new IllegalArgumentException("Email đã tồn tại");
+        // 1. Kiểm tra trùng Email (Đã có)
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new IllegalArgumentException("Email này đã tồn tại trong hệ thống!");
+        }
+
+        // 2. === THÊM: Kiểm tra trùng MSSV ===
+        // (Chỉ kiểm tra nếu MSSV không rỗng)
+        if (request.getMssv() != null && !request.getMssv().isEmpty()) {
+            if (userRepository.existsByMssv(request.getMssv())) {
+                throw new IllegalArgumentException("Mã số sinh viên này đã tồn tại!");
+            }
         }
 
         User newUser = new User();
@@ -122,11 +131,23 @@ public class AdminServiceImpl implements AdminService {
 
         // Cập nhật các trường
         user.setHoTen(request.getHoTen());
-        user.setMssv(request.getMssv());
+        // user.setMssv(request.getMssv());
         user.setSoDienThoai(request.getSoDienThoai());
         user.setNganhHoc(request.getNganhHoc());
         user.setLopHoc(request.getLopHoc());
         user.setKhoa(request.getKhoa());
+
+        // 2. Kiểm tra MSSV (Quan trọng)
+        if (request.getMssv() != null && !request.getMssv().trim().isEmpty()) {
+            String newMssv = request.getMssv().trim();
+            String oldMssv = user.getMssv();
+
+            // Logic: Nếu MSSV CÓ THAY ĐỔI và MSSV MỚI đã tồn tại trong hệ thống
+            if (!newMssv.equalsIgnoreCase(oldMssv) && userRepository.existsByMssv(newMssv)) {
+                throw new IllegalArgumentException("Mã số sinh viên '" + newMssv + "' đã được sử dụng bởi tài khoản khác!");
+            }
+            user.setMssv(newMssv);
+        }
 
         User updatedUser = userRepository.save(user);
         return convertToUserResponse(updatedUser);
@@ -308,6 +329,14 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     public Category createCategory(Category category) {
+        // Kiểm tra trùng tên (Bỏ qua hoa thường & khoảng trắng)
+        String tenClean = category.getTenDanhMuc().trim();
+
+        if (categoryRepository.existsByTenDanhMucIgnoreCase(tenClean)) {
+            throw new IllegalArgumentException("Tên danh mục này đã tồn tại!");
+        }
+
+        category.setTenDanhMuc(tenClean); // Lưu tên đã chuẩn hóa (đã trim)
         return categoryRepository.save(category);
     }
 
@@ -315,7 +344,18 @@ public class AdminServiceImpl implements AdminService {
     public Category updateCategory(Long id, Category categoryDetails) {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy danh mục"));
-        category.setTenDanhMuc(categoryDetails.getTenDanhMuc());
+
+        String oldName = category.getTenDanhMuc();
+        String newName = categoryDetails.getTenDanhMuc().trim();
+
+        // Logic: Nếu tên CÓ THAY ĐỔI và tên MỚI đã tồn tại
+        if (!newName.equalsIgnoreCase(oldName) && categoryRepository.existsByTenDanhMucIgnoreCase(newName)) {
+            throw new IllegalArgumentException("Tên danh mục '" + newName + "' đã tồn tại!");
+        }
+
+        category.setTenDanhMuc(newName);
+        // (Cập nhật các trường khác nếu có, ví dụ mô tả)
+
         return categoryRepository.save(category);
     }
 

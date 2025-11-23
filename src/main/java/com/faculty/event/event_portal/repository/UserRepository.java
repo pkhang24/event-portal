@@ -19,6 +19,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
     // chỉ bằng cách bạn đặt tên hàm là findBy[TênThuộcTính]
     Optional<User> findByEmail(String email);
 
+    boolean existsByEmail(String email);
+    boolean existsByMssv(String mssv);
+
     // 1. Tìm tất cả user đã bị xóa mềm (DÙNG NATIVE QUERY)
     @Query(value = "SELECT * FROM users u WHERE u.deleted_at IS NOT NULL", nativeQuery = true)
     List<User> findSoftDeleted();

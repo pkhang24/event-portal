@@ -32,7 +32,7 @@ public class User {
     @Column(nullable = false)
     private String password; // Mật khẩu này sẽ được mã hóa
 
-    @Column(nullable = true) // Cột này có thể null (vì Admin/Poster không có)
+    @Column(nullable = true, unique = true) // Cột này có thể null (vì Admin/Poster không có)
     private String mssv;
 
     @Column(nullable = true)

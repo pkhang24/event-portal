@@ -13,6 +13,9 @@ import java.util.Optional;
 
 @Repository
 public interface CategoryRepository extends JpaRepository<Category, Long> {
+
+    boolean existsByTenDanhMucIgnoreCase(String tenDanhMuc);
+
     // 1. Tìm thùng rác (Bỏ qua @Where nhờ nativeQuery)
     @Query(value = "SELECT * FROM categories WHERE deleted_at IS NOT NULL", nativeQuery = true)
     List<Category> findSoftDeleted();
