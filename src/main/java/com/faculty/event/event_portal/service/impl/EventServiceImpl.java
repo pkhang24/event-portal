@@ -55,9 +55,21 @@ public class EventServiceImpl implements EventService {
         response.setThoiGianKetThuc(event.getThoiGianKetThuc());
         response.setDiaDiem(event.getDiaDiem());
         response.setSoLuongGioiHan(event.getSoLuongGioiHan());
+        long count = registrationRepository.countByEvent(event);
+        response.setSoNguoiDaDangKy(count);
         response.setTrangThai(event.getTrangThai().name());
         response.setLuotXem(event.getLuotXem());
-        response.setTenNguoiDang(event.getNguoiDang().getHoTen());
+//        response.setTenNguoiDang(event.getNguoiDang().getHoTen());
+        try {
+            if (event.getNguoiDang() != null) {
+                response.setTenNguoiDang(event.getNguoiDang().getHoTen());
+            } else {
+                response.setTenNguoiDang("Người dùng đã bị xóa");
+            }
+        } catch (EntityNotFoundException ex) {
+            // Bắt lỗi khi Hibernate cố proxy tới user đã xóa mềm
+            response.setTenNguoiDang("Người dùng đã bị xóa");
+        }
         response.setCreatedAt(event.getCreatedAt());
         response.setIsRegistered(isRegistered); // Gán giá trị mới
         return response;

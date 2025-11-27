@@ -27,10 +27,14 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                 .orElseThrow(() -> new UsernameNotFoundException("Không tìm thấy user với email: " + email));
 
         // Trả về đối tượng UserDetails mà Spring Security hiểu
-        return new User(
+        return new org.springframework.security.core.userdetails.User(
                 appUser.getEmail(),
                 appUser.getPassword(),
-                Collections.singletonList(new SimpleGrantedAuthority(appUser.getRole().name())) // Cần chuyển đổi Role của bạn
+                true, // enabled
+                true, // accountNonExpired
+                true, // credentialsNonExpired
+                !appUser.isLocked(), // accountNonLocked (Lưu ý dấu ! : Nếu isLocked=true thì accountNonLocked=false)
+                Collections.singletonList(new SimpleGrantedAuthority(appUser.getRole().name()))
         );
     }
 }

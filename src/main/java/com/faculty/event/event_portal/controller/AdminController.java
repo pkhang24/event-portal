@@ -40,6 +40,12 @@ public class AdminController {
         this.userRepository = userRepository;
     }
 
+    // GET /api/admin/dashboard/activities
+    @GetMapping("/dashboard/activities")
+    public ResponseEntity<List<DashboardActivity>> getRecentActivities() {
+        return ResponseEntity.ok(adminService.getRecentActivities());
+    }
+
     // --- 1. QUẢN LÝ USER ---
 
     // GET /api/admin/users: Xem tất cả user
@@ -68,13 +74,20 @@ public class AdminController {
         return ResponseEntity.ok(adminService.updateUser(id, request));
     }
 
-    //
+    // DEL /api/admin/users/{id}
     @DeleteMapping("/users/{id}")
     public ResponseEntity<Void> softDeleteUser(@PathVariable Long id) {
         // Gọi thẳng vào repository vì @SQLDelete sẽ xử lý
         // (Hoặc bạn có thể tạo hàm trong Service)
         userRepository.deleteById(id);
         return ResponseEntity.noContent().build();
+    }
+
+    // PUT /api/admin/users/{id}/lock
+    @PutMapping("/users/{id}/lock")
+    public ResponseEntity<Void> toggleUserLock(@PathVariable Long id) {
+        adminService.toggleUserLock(id);
+        return ResponseEntity.ok().build();
     }
 
     // --- 2. QUẢN LÝ SỰ KIỆN ---
@@ -88,7 +101,7 @@ public class AdminController {
 
     // --- QUẢN LÝ CATEGORY ---
     @GetMapping("/categories")
-    public ResponseEntity<List<Category>> getAllCategories() {
+    public ResponseEntity<List<CategoryResponse>> getAllCategories() { // Sửa kiểu trả về
         return ResponseEntity.ok(adminService.getAllCategories());
     }
 

@@ -51,6 +51,9 @@ public class User {
     @Column(nullable = false)
     private Role role; // Sử dụng Enum ta vừa tạo
 
+    @Column(columnDefinition = "boolean default false")
+    private boolean isLocked = false;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt; // Thời gian tạo
 

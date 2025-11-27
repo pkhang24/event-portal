@@ -1,5 +1,6 @@
 package com.faculty.event.event_portal.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import java.time.LocalDateTime;
 
@@ -14,5 +15,7 @@ public class UserResponse {
     private String khoa;
     private String lopHoc;
     private String nganhHoc;
+    @JsonProperty("isLocked")
+    private boolean isLocked;
     private LocalDateTime createdAt;
 }

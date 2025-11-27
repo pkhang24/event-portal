@@ -14,7 +14,13 @@ import java.util.Optional;
 @Repository
 public interface CategoryRepository extends JpaRepository<Category, Long> {
 
+    List<Category> findAllByDeletedAtIsNull();
+
     boolean existsByTenDanhMucIgnoreCase(String tenDanhMuc);
+
+    // Đếm số sự kiện (chưa xóa) thuộc danh mục này
+    @Query("SELECT COUNT(e) FROM Event e WHERE e.category = :category AND e.deletedAt IS NULL")
+    Long countEventsByCategory(@Param("category") Category category);
 
     // 1. Tìm thùng rác (Bỏ qua @Where nhờ nativeQuery)
     @Query(value = "SELECT * FROM categories WHERE deleted_at IS NOT NULL", nativeQuery = true)

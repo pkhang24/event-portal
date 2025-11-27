@@ -9,6 +9,7 @@ import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -16,10 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.LinkedHashMap;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -45,7 +43,17 @@ public class AdminServiceImpl implements AdminService {
         response.setSoLuongGioiHan(event.getSoLuongGioiHan());
         response.setTrangThai(event.getTrangThai().name());
         response.setLuotXem(event.getLuotXem());
-        response.setTenNguoiDang(event.getNguoiDang().getHoTen());
+//        response.setTenNguoiDang(event.getNguoiDang().getHoTen());
+        try {
+            if (event.getNguoiDang() != null) {
+                response.setTenNguoiDang(event.getNguoiDang().getHoTen());
+            } else {
+                response.setTenNguoiDang("Người dùng bị đã xóa");
+            }
+        } catch (EntityNotFoundException ex) {
+            // Bắt lỗi khi Hibernate cố load user đã bị xóa mềm
+            response.setTenNguoiDang("Người dùng bị đã xóa");
+        }
         response.setIsRegistered(isRegistered);
 
         return response;
@@ -77,6 +85,7 @@ public class AdminServiceImpl implements AdminService {
         response.setKhoa(user.getKhoa());
         response.setLopHoc(user.getLopHoc());
         response.setNganhHoc(user.getNganhHoc());
+        response.setLocked(user.isLocked());
         response.setCreatedAt(user.getCreatedAt());
         return response;
     }
@@ -165,6 +174,16 @@ public class AdminServiceImpl implements AdminService {
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Role không hợp lệ: " + newRoleName);
         }
+    }
+
+    @Override
+    public void toggleUserLock(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy user"));
+
+        // Đảo ngược trạng thái (Đang khóa -> Mở, Đang mở -> Khóa)
+        user.setLocked(!user.isLocked());
+        userRepository.save(user);
     }
 
     @Override
@@ -322,9 +341,20 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
-    public List<Category> getAllCategories() {
-        // Chỉ lấy chưa xóa
-        return categoryRepository.findAll();
+    public List<CategoryResponse> getAllCategories() {
+        List<Category> categories = categoryRepository.findAllByDeletedAtIsNull();
+
+        return categories.stream().map(cat -> {
+            CategoryResponse dto = new CategoryResponse();
+            dto.setId(cat.getId());
+            dto.setTenDanhMuc(cat.getTenDanhMuc());
+
+            // Gọi hàm đếm từ Repository
+            long count = categoryRepository.countEventsByCategory(cat);
+            dto.setSoLuongSuKien(count);
+
+            return dto;
+        }).collect(Collectors.toList());
     }
 
     @Override
@@ -490,5 +520,75 @@ public class AdminServiceImpl implements AdminService {
             stats.put(eventName, registrationCount);
         }
         return stats;
+    }
+
+    @Override
+    public List<DashboardActivity> getRecentActivities() {
+        List<DashboardActivity> activities = new ArrayList<>();
+
+        // 1. Lấy 5 sự kiện mới nhất
+        List<Event> recentEvents = eventRepository.findAll(
+                PageRequest.of(0, 5, Sort.by(Sort.Direction.DESC, "createdAt"))
+        ).getContent();
+
+        for (Event e : recentEvents) {
+            try {
+                // Cố gắng lấy tên người đăng
+                // Nếu User đã bị xóa mềm, dòng e.getNguoiDang() có thể gây lỗi EntityNotFound
+                String tenNguoiDang = e.getNguoiDang() != null ? e.getNguoiDang().getHoTen() : "Người dùng đã xóa";
+
+                activities.add(new DashboardActivity(
+                        "Sự kiện \"" + e.getTieuDe() + "\" đã được tạo bởi " + tenNguoiDang,
+                        e.getCreatedAt(),
+                        "create_event"
+                ));
+            } catch (EntityNotFoundException ex) {
+                // Nếu User bị xóa mềm và Hibernate không tìm thấy -> Bỏ qua hoặc hiện placeholder
+                activities.add(new DashboardActivity(
+                        "Sự kiện \"" + e.getTieuDe() + "\" (Người đăng đã bị xóa)",
+                        e.getCreatedAt(),
+                        "create_event"
+                ));
+            }
+        }
+
+        // 2. Lấy 5 lượt đăng ký mới nhất
+        List<Registration> recentRegs = registrationRepository.findAll(
+                PageRequest.of(0, 5, Sort.by(Sort.Direction.DESC, "createdAt"))
+        ).getContent();
+
+        for (Registration r : recentRegs) {
+            try {
+                // Tương tự, kiểm tra User và Event của vé
+                String tenSinhVien = r.getUser() != null ? r.getUser().getHoTen() : "SV đã xóa";
+                String tenSuKien = r.getEvent() != null ? r.getEvent().getTieuDe() : "Sự kiện đã xóa";
+
+                activities.add(new DashboardActivity(
+                        tenSinhVien + " đã đăng ký tham gia \"" + tenSuKien + "\".",
+                        r.getCreatedAt(),
+                        "register"
+                ));
+            } catch (EntityNotFoundException ex) {
+                // Bỏ qua nếu dữ liệu liên kết bị lỗi
+            }
+        }
+
+        // 3. Lấy 5 user mới nhất
+        List<User> recentUsers = userRepository.findAll(
+                PageRequest.of(0, 5, Sort.by(Sort.Direction.DESC, "createdAt"))
+        ).getContent();
+
+        for (User u : recentUsers) {
+            activities.add(new DashboardActivity(
+                    "Thành viên mới: " + u.getHoTen() + " đã gia nhập.",
+                    u.getCreatedAt(),
+                    "new_user"
+            ));
+        }
+
+        return activities.stream()
+                .sorted(Comparator.comparing(DashboardActivity::getTime).reversed())
+                .limit(8)
+                .collect(Collectors.toList());
     }
 }

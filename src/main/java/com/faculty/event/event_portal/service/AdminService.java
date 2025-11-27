@@ -13,6 +13,8 @@ public interface AdminService {
     List<UserResponse> getAllUsers();
     List<EventResponse> getAllEventsForAdmin();
     void changePassword(String userEmail, ChangePasswordRequest request);
+    void toggleUserLock(Long userId);
+
     // --- User Recycle Bin ---
     List<UserResponse> getDeletedUsers();
     void restoreUser(Long userId);
@@ -32,6 +34,8 @@ public interface AdminService {
     List<Banner> getDeletedBanners();
     Banner restoreBanner(Long id);
     void hardDeleteBanner(Long id);
+
+    List<DashboardActivity> getRecentActivities();
 
     UserResponse updateUserRole(Long userId, String newRoleName);
     UserResponse createUser(CreateUserRequest request);
@@ -57,7 +61,7 @@ public interface AdminService {
     // Xuất báo cáo Excel cho sự kiện
     byte[] exportEventsToExcel() throws IOException;
 
-    List<Category> getAllCategories();
+    List<CategoryResponse> getAllCategories();
     Category createCategory(Category category);
     Category updateCategory(Long id, Category categoryDetails);
     void deleteCategory(Long id);

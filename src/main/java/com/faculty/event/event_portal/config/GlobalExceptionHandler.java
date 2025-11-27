@@ -5,6 +5,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -94,5 +95,13 @@ public class GlobalExceptionHandler {
         }
 
         return new ResponseEntity<>(response, HttpStatus.CONFLICT); // 409 Conflict
+    }
+
+    @ExceptionHandler(LockedException.class)
+    public ResponseEntity<Map<String, String>> handleLockedException(LockedException e) {
+        Map<String, String> response = new HashMap<>();
+        response.put("status", "error");
+        response.put("message", "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ Admin.");
+        return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
     }
 }

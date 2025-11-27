@@ -15,6 +15,7 @@ public class EventResponse {
     private LocalDateTime thoiGianKetThuc;
     private String diaDiem;
     private Integer soLuongGioiHan;
+    private Long soNguoiDaDangKy;
     private String trangThai; // "DRAFT" hoặc "PUBLISHED"
     private int luotXem;
     private String tenNguoiDang; // Thêm thông tin người đăng cho đẹp

@@ -1,6 +1,7 @@
 package com.faculty.event.event_portal.controller;
 
 // ... (imports)
+import com.faculty.event.event_portal.dto.CategoryResponse;
 import com.faculty.event.event_portal.entity.Category;
 import com.faculty.event.event_portal.service.AdminService; // Dùng chung service
 import org.springframework.http.ResponseEntity;
@@ -22,7 +23,7 @@ public class CategoryController {
 
     // API Trang chủ: GET /api/categories
     @GetMapping
-    public ResponseEntity<List<Category>> getPublicCategories() {
+    public ResponseEntity<List<CategoryResponse>> getPublicCategories() { // Sửa kiểu trả về
         return ResponseEntity.ok(adminService.getAllCategories());
     }
 }
