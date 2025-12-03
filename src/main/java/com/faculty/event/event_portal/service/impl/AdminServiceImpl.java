@@ -4,6 +4,7 @@ import com.faculty.event.event_portal.dto.*;
 import com.faculty.event.event_portal.entity.*;
 import com.faculty.event.event_portal.repository.*;
 import com.faculty.event.event_portal.service.AdminService;
+import com.faculty.event.event_portal.service.NotificationService;
 import jakarta.persistence.EntityNotFoundException;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.poi.ss.usermodel.Row;
@@ -28,6 +29,8 @@ public class AdminServiceImpl implements AdminService {
     private final RegistrationRepository registrationRepository;
     private final CategoryRepository categoryRepository;
     private final BannerRepository bannerRepository;
+    private final NotificationService notificationService;
+
     // Inject PasswordEncoder vào constructor của AdminServiceImpl
     private final PasswordEncoder passwordEncoder;
     private EventResponse convertToResponse(Event event, Boolean isRegistered) {
@@ -65,12 +68,14 @@ public class AdminServiceImpl implements AdminService {
                             RegistrationRepository registrationRepository,
                             CategoryRepository categoryRepository,
                             BannerRepository bannerRepository,
-                            PasswordEncoder passwordEncoder) { // Thêm
+                            PasswordEncoder passwordEncoder,
+                            NotificationService notificationService) { // Thêm
         this.userRepository = userRepository;
         this.eventRepository = eventRepository;
         this.registrationRepository = registrationRepository;
         this.categoryRepository = categoryRepository;
         this.bannerRepository = bannerRepository;
+        this.notificationService = notificationService;
         this.passwordEncoder = passwordEncoder; // Thêm
     }
 
@@ -239,6 +244,18 @@ public class AdminServiceImpl implements AdminService {
 
         event.setTrangThai(EventStatus.PUBLISHED);
         eventRepository.save(event);
+
+        // === 3. THÊM ĐOẠN NÀY: Báo cho Poster ===
+        try {
+            notificationService.createNotification(
+                    event.getNguoiDang(), // Người nhận là Poster
+                    "Sự kiện đã được duyệt",
+                    "Sự kiện '" + event.getTieuDe() + "' của bạn đã được Admin phê duyệt.",
+                    "SUCCESS"
+            );
+        } catch (Exception e) {
+            System.err.println("Lỗi gửi thông báo: " + e.getMessage());
+        }
     }
 
     @Override

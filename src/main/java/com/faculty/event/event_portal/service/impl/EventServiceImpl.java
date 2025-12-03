@@ -6,6 +6,7 @@ import com.faculty.event.event_portal.dto.ParticipantResponse;
 import com.faculty.event.event_portal.entity.*;
 import com.faculty.event.event_portal.repository.*;
 import com.faculty.event.event_portal.service.EventService;
+import com.faculty.event.event_portal.service.NotificationService;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -31,16 +32,19 @@ public class EventServiceImpl implements EventService {
     private final UserRepository userRepository;
     private final RegistrationRepository registrationRepository; // Inject thêm cái này
     private final CategoryRepository categoryRepository;
+    private final NotificationService notificationService;
 
 
     public EventServiceImpl(EventRepository eventRepository,
                             UserRepository userRepository,
                             RegistrationRepository registrationRepository,
-                            CategoryRepository categoryRepository) { // Cập nhật constructor
+                            CategoryRepository categoryRepository,
+                            NotificationService notificationService) { // Cập nhật constructor
         this.eventRepository = eventRepository;
         this.userRepository = userRepository;
         this.registrationRepository = registrationRepository; // Gán giá trị
         this.categoryRepository = categoryRepository;
+        this.notificationService = notificationService;
     }
 
     // --- Hàm helper để chuyển Entity -> DTO ---
@@ -145,6 +149,24 @@ public class EventServiceImpl implements EventService {
 
         // 3. Lưu vào CSDL
         Event savedEvent = eventRepository.save(event);
+
+        // === THÊM ĐOẠN CODE THÔNG BÁO NÀY ===
+        try {
+            // 1. Tìm tất cả Admin
+            List<User> admins = userRepository.findAllByRole(Role.ADMIN);
+
+            // 2. Gửi thông báo cho từng Admin
+            for (User admin : admins) {
+                notificationService.createNotification(
+                        admin,
+                        "Sự kiện mới cần duyệt",
+                        "Poster " + poster.getHoTen() + " vừa đăng sự kiện: " + savedEvent.getTieuDe(),
+                        "WARNING" // Hoặc "INFO"
+                );
+            }
+        } catch (Exception e) {
+            System.err.println("Lỗi gửi thông báo cho Admin: " + e.getMessage());
+        }
 
         return convertToResponse(savedEvent, false);
     }

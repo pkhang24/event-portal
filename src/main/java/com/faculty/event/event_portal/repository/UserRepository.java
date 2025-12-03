@@ -1,5 +1,6 @@
 package com.faculty.event.event_portal.repository;
 
+import com.faculty.event.event_portal.entity.Role;
 import com.faculty.event.event_portal.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -13,6 +14,8 @@ import java.util.Optional;
 @Repository // Đánh dấu đây là một Repository
 public interface UserRepository extends JpaRepository<User, Long> {
     // JpaRepository<TênEntity, KiểuDữLiệuCủaKhóaChính>
+
+    List<User> findAllByRole(Role role);
 
     // Spring Data JPA sẽ tự động tạo câu lệnh SQL
     // "SELECT * FROM users WHERE email = ?"

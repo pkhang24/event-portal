@@ -198,6 +198,18 @@ public class RegistrationServiceImpl implements RegistrationService {
         // 4. Lưu lại
         Registration updatedRegistration = registrationRepository.save(registration);
 
+        // === THÊM ĐOẠN NÀY: Báo cho Sinh viên ===
+        try {
+            notificationService.createNotification(
+                    registration.getUser(),
+                    "Điểm danh thành công",
+                    "Bạn đã điểm danh thành công tại sự kiện: " + registration.getEvent().getTieuDe(),
+                    "SUCCESS"
+            );
+        } catch (Exception e) {
+            System.err.println("Lỗi thông báo checkin: " + e.getMessage());
+        }
+
         // 5. Trả về thông tin vé (để hiển thị cho người check-in)
         return convertToTicketResponse(updatedRegistration);
     }
