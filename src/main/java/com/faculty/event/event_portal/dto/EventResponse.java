@@ -19,6 +19,7 @@ public class EventResponse {
     private String trangThai; // "DRAFT" hoặc "PUBLISHED"
     private int luotXem;
     private String tenNguoiDang; // Thêm thông tin người đăng cho đẹp
+    private String tenDanhMuc;
     private LocalDateTime createdAt;
     private Boolean isRegistered; // Thêm trường này (có thể null nếu user chưa đăng nhập)
 }

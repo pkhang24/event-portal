@@ -261,24 +261,30 @@ public class AdminController {
         return ResponseEntity.ok(adminService.getMonthlyEventStats(year));
     }
 
-    // GET /api/admin/stats/top-categories
+    // GET /api/admin/stats/top-categories?year=2025&month=0
     @GetMapping("/stats/top-categories")
-    public ResponseEntity<Map<String, Long>> getTopCategoryStats() {
-        return ResponseEntity.ok(adminService.getTopCategoryStats());
+    public ResponseEntity<Map<String, Long>> getTopCategoryStats(
+            @RequestParam int year,
+            @RequestParam(required = false, defaultValue = "0") int month) {
+
+        return ResponseEntity.ok(adminService.getTopCategoryStats(year, month));
     }
 
     // API 7: Xuất báo cáo Excel
-    // GET /api/admin/report/events-excel
+    // GET /api/admin/report/events-excel?year=2025
     @GetMapping("/report/events-excel")
-    public ResponseEntity<byte[]> exportEventsReport() {
+    public ResponseEntity<byte[]> exportDashboardReport(@RequestParam(defaultValue = "2025") int year) {
         try {
-            byte[] excelData = adminService.exportEventsToExcel();
+            byte[] excelData = adminService.exportDashboardReport(year);
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-            headers.setContentDispositionFormData("attachment", "bao-cao-su-kien.xlsx");
+            // Đặt tên file đẹp: Bao_cao_thong_ke_2025.xlsx
+            headers.setContentDispositionFormData("attachment", "Bao_cao_thong_ke_" + year + ".xlsx");
 
-            return ResponseEntity.ok().headers(headers).body(excelData);
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(excelData);
         } catch (IOException e) {
             return ResponseEntity.status(500).build();
         }

@@ -21,6 +21,11 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.usermodel.XSSFFont;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+
 @Service
 public class AdminServiceImpl implements AdminService {
 
@@ -311,8 +316,22 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
-    public Map<String, Long> getTopCategoryStats() {
-        List<Object[]> results = registrationRepository.findTopCategoriesByParticipation();
+    public Map<String, Long> getTopCategoryStats(int year, int month) {
+        // 1. Tính toán khoảng thời gian (Giống hệt hàm getTopEventStats)
+        LocalDateTime startDate;
+        LocalDateTime endDate;
+
+        if (month > 0 && month <= 12) {
+            startDate = LocalDateTime.of(year, month, 1, 0, 0);
+            endDate = startDate.plusMonths(1).minusNanos(1);
+        } else {
+            startDate = LocalDateTime.of(year, 1, 1, 0, 0);
+            endDate = startDate.plusYears(1).minusNanos(1);
+        }
+
+        // 2. Gọi Repository mới có lọc ngày
+        List<Object[]> results = registrationRepository.findCategoryStatsInDateRange(startDate, endDate);
+
         Map<String, Long> stats = new LinkedHashMap<>();
         for (Object[] row : results) {
             stats.put((String) row[0], (Long) row[1]);
@@ -321,40 +340,122 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
-    public byte[] exportEventsToExcel() throws IOException {
-        // Lấy tất cả sự kiện (chưa bị xóa)
-        List<Event> events = eventRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt"));
+    public byte[] exportDashboardReport(int year) throws IOException {
+        // 1. Lấy dữ liệu thống kê
+        Map<String, Long> topEvents = getTopEventStats(year, 0); // 0 = cả năm
+        Map<Integer, Long> monthlyStats = getMonthlyEventStats(year);
+        Map<String, Long> categoryStats = getTopCategoryStats(year, 0);
 
-        XSSFWorkbook workbook = new XSSFWorkbook();
-        XSSFSheet sheet = workbook.createSheet("Danh sách Sự kiện");
+        // 2. Khởi tạo Workbook & Sheet
+        Workbook workbook = new XSSFWorkbook();
+        Sheet sheet = workbook.createSheet("Báo cáo Thống kê " + year);
 
-        // Tiêu đề
-        String[] HEADERS = {"ID", "Tiêu đề", "Trạng thái", "Người tạo", "Ngày bắt đầu", "Địa điểm", "Số lượng ĐK"};
-        Row headerRow = sheet.createRow(0);
-        for (int i = 0; i < HEADERS.length; i++) {
-            headerRow.createCell(i).setCellValue(HEADERS[i]);
-        }
+        // --- TẠO STYLE (Định dạng đẹp) ---
 
-        // Đổ dữ liệu
-        int rowNum = 1;
-        for (Event event : events) {
+        // Style: Tiêu đề lớn (Bold, Center, Font to)
+        CellStyle titleStyle = workbook.createCellStyle();
+        XSSFFont titleFont = (XSSFFont) workbook.createFont();
+        titleFont.setFontHeightInPoints((short) 16);
+        titleFont.setBold(true);
+        titleStyle.setFont(titleFont);
+        titleStyle.setAlignment(HorizontalAlignment.CENTER);
+
+        // Style: Header bảng (Bold, Nền xám, Có viền)
+        CellStyle headerStyle = workbook.createCellStyle();
+        XSSFFont headerFont = (XSSFFont) workbook.createFont();
+        headerFont.setBold(true);
+        headerStyle.setFont(headerFont);
+        headerStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+        headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        headerStyle.setBorderBottom(BorderStyle.THIN);
+        headerStyle.setBorderTop(BorderStyle.THIN);
+        headerStyle.setBorderLeft(BorderStyle.THIN);
+        headerStyle.setBorderRight(BorderStyle.THIN);
+
+        // Style: Data (Có viền)
+        CellStyle dataStyle = workbook.createCellStyle();
+        dataStyle.setBorderBottom(BorderStyle.THIN);
+        dataStyle.setBorderTop(BorderStyle.THIN);
+        dataStyle.setBorderLeft(BorderStyle.THIN);
+        dataStyle.setBorderRight(BorderStyle.THIN);
+
+        int rowNum = 0;
+
+        // === PHẦN 1: TIÊU ĐỀ CHUNG ===
+        Row mainTitleRow = sheet.createRow(rowNum++);
+        Cell mainTitleCell = mainTitleRow.createCell(0);
+        mainTitleCell.setCellValue("BÁO CÁO HOẠT ĐỘNG NĂM " + year);
+        mainTitleCell.setCellStyle(titleStyle);
+        // Merge cell (Gộp ô A1 đến D1)
+        sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 3));
+        rowNum++; // Cách 1 dòng
+
+        // === PHẦN 2: TOP SỰ KIỆN (Top 5) ===
+        rowNum = createSectionHeader(sheet, rowNum, "I. TOP SỰ KIỆN CÓ LƯỢT ĐĂNG KÝ CAO NHẤT", titleStyle);
+        // Header Table
+        Row headerRow1 = sheet.createRow(rowNum++);
+        createCell(headerRow1, 0, "Tên sự kiện", headerStyle);
+        createCell(headerRow1, 1, "Số lượng đăng ký", headerStyle);
+
+        // Data Table
+        for (Map.Entry<String, Long> entry : topEvents.entrySet()) {
             Row row = sheet.createRow(rowNum++);
-            row.createCell(0).setCellValue(event.getId());
-            row.createCell(1).setCellValue(event.getTieuDe());
-            row.createCell(2).setCellValue(event.getTrangThai().name());
-            row.createCell(3).setCellValue(event.getNguoiDang().getHoTen());
-            row.createCell(4).setCellValue(event.getThoiGianBatDau().toString()); // Cần format
-            row.createCell(5).setCellValue(event.getDiaDiem());
-            // Đếm số lượng đăng ký cho sự kiện này
-            long registrationCount = registrationRepository.countByEvent(event);
-            row.createCell(6).setCellValue(registrationCount);
+            createCell(row, 0, entry.getKey(), dataStyle);
+            createCell(row, 1, entry.getValue().toString(), dataStyle);
         }
+        rowNum++; // Cách dòng
+
+        // === PHẦN 3: THỐNG KÊ THEO THÁNG ===
+        rowNum = createSectionHeader(sheet, rowNum, "II. SỐ LƯỢNG SỰ KIỆN THEO THÁNG", titleStyle);
+        Row headerRow2 = sheet.createRow(rowNum++);
+        createCell(headerRow2, 0, "Tháng", headerStyle);
+        createCell(headerRow2, 1, "Số lượng sự kiện", headerStyle);
+
+        for (Map.Entry<Integer, Long> entry : monthlyStats.entrySet()) {
+            Row row = sheet.createRow(rowNum++);
+            createCell(row, 0, "Tháng " + entry.getKey(), dataStyle);
+            createCell(row, 1, entry.getValue().toString(), dataStyle);
+        }
+        rowNum++;
+
+        // === PHẦN 4: TỈ LỆ THEO CHỦ ĐỀ ===
+        rowNum = createSectionHeader(sheet, rowNum, "III. THỐNG KÊ THEO CHỦ ĐỀ", titleStyle);
+        Row headerRow3 = sheet.createRow(rowNum++);
+        createCell(headerRow3, 0, "Chủ đề (Danh mục)", headerStyle);
+        createCell(headerRow3, 1, "Số lượng", headerStyle); // Hoặc "Lượt tham gia" tùy logic bạn chọn
+
+        for (Map.Entry<String, Long> entry : categoryStats.entrySet()) {
+            Row row = sheet.createRow(rowNum++);
+            createCell(row, 0, entry.getKey(), dataStyle);
+            createCell(row, 1, entry.getValue().toString(), dataStyle);
+        }
+
+        // Auto-size cột cho đẹp
+        sheet.autoSizeColumn(0);
+        sheet.autoSizeColumn(1);
+        sheet.setColumnWidth(0, 30 * 256); // Set độ rộng tối thiểu cho cột A
 
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         workbook.write(outputStream);
         workbook.close();
-
         return outputStream.toByteArray();
+    }
+
+    // Hàm phụ để tạo Cell nhanh
+    private void createCell(Row row, int column, String value, CellStyle style) {
+        Cell cell = row.createCell(column);
+        cell.setCellValue(value);
+        cell.setCellStyle(style);
+    }
+
+    // Hàm phụ tạo tiêu đề Section
+    private int createSectionHeader(Sheet sheet, int rowNum, String title, CellStyle style) {
+        Row row = sheet.createRow(rowNum++);
+        Cell cell = row.createCell(0);
+        cell.setCellValue(title);
+        // Tạo style riêng cho sub-header nếu muốn (nhỏ hơn title chính nhưng đậm)
+        // Ở đây dùng tạm style title
+        return rowNum;
     }
 
     @Override

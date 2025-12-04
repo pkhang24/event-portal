@@ -44,12 +44,13 @@ public interface RegistrationRepository extends JpaRepository<Registration, Long
             "AND r.event.thoiGianKetThuc > :now")
     List<Registration> findActiveRegistrationsByUser(@Param("user") User user, @Param("now") LocalDateTime now);
 
-    // Top chủ đề có nhiều lượt tham gia nhất
-    @Query("SELECT c.tenDanhMuc, COUNT(r.id) as luotThamGia " +
+    // Thống kê tỉ lệ tham gia theo chủ đề TRONG KHOẢNG THỜI GIAN
+    @Query("SELECT c.tenDanhMuc, COUNT(r.id) " +
             "FROM Registration r " +
             "JOIN r.event e " +
             "JOIN e.category c " +
+            "WHERE e.thoiGianBatDau BETWEEN :startDate AND :endDate " + // <<< THÊM DÒNG NÀY
             "GROUP BY c.id, c.tenDanhMuc " +
-            "ORDER BY luotThamGia DESC")
-    List<Object[]> findTopCategoriesByParticipation();
+            "ORDER BY COUNT(r.id) DESC")
+    List<Object[]> findCategoryStatsInDateRange(@Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);
 }

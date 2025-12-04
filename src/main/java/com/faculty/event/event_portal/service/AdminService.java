@@ -53,13 +53,13 @@ public interface AdminService {
 
     Map<Integer, Long> getMonthlyEventStats(int year);
 
-    Map<String, Long> getTopCategoryStats();
+    Map<String, Long> getTopCategoryStats(int year, int month);
 
     // Lấy thống kê sự kiện (có lọc)
     Map<String, Long> getTopEventStats(int year, int month);
 
     // Xuất báo cáo Excel cho sự kiện
-    byte[] exportEventsToExcel() throws IOException;
+    byte[] exportDashboardReport(int year) throws IOException;
 
     List<CategoryResponse> getAllCategories();
     Category createCategory(Category category);

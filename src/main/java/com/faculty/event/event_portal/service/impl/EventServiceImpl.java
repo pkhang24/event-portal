@@ -63,16 +63,24 @@ public class EventServiceImpl implements EventService {
         response.setSoNguoiDaDangKy(count);
         response.setTrangThai(event.getTrangThai().name());
         response.setLuotXem(event.getLuotXem());
-//        response.setTenNguoiDang(event.getNguoiDang().getHoTen());
+        // response.setTenNguoiDang(event.getNguoiDang().getHoTen());
+        // 1. Map Người Đăng (Xử lý an toàn)
         try {
             if (event.getNguoiDang() != null) {
+                // Lưu ý: Backend trả về String 'tenNguoiDang', không phải object
                 response.setTenNguoiDang(event.getNguoiDang().getHoTen());
             } else {
-                response.setTenNguoiDang("Người dùng đã bị xóa");
+                response.setTenNguoiDang("Admin");
             }
-        } catch (EntityNotFoundException ex) {
-            // Bắt lỗi khi Hibernate cố proxy tới user đã xóa mềm
-            response.setTenNguoiDang("Người dùng đã bị xóa");
+        } catch (Exception e) {
+            response.setTenNguoiDang("Người dùng đã xóa");
+        }
+
+        // 2. Map Danh Mục (MỚI THÊM)
+        if (event.getCategory() != null) {
+            response.setTenDanhMuc(event.getCategory().getTenDanhMuc());
+        } else {
+            response.setTenDanhMuc("Sự kiện chung");
         }
         response.setCreatedAt(event.getCreatedAt());
         response.setIsRegistered(isRegistered); // Gán giá trị mới
