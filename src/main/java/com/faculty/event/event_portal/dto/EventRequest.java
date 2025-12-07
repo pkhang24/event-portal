@@ -15,5 +15,6 @@ public class EventRequest {
     private String diaDiem;
     private Integer soLuongGioiHan; // Có thể null (không giới hạn)
     private Long categoryId;
+    private String trangThai;
     // "trangThai" (DRAFT/PUBLISHED) sẽ được set trong service
 }

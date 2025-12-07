@@ -63,7 +63,7 @@ public class SecurityConfig {
                     // Cho phép cả localhost VÀ địa chỉ IP mạng của bạn
                     corsConfig.setAllowedOrigins(List.of(
                             "http://localhost:5173",
-                            "http://192.168.2.7:5173" // <<<--- THÊM DÒNG NÀY
+                            "http://192.168.2.8:5173" // <<<--- THÊM DÒNG NÀY
                     ));
                     corsConfig.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
                     corsConfig.setAllowedHeaders(List.of("*"));

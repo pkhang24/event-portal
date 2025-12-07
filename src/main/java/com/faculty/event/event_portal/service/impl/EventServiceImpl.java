@@ -147,7 +147,12 @@ public class EventServiceImpl implements EventService {
         event.setDiaDiem(request.getDiaDiem());
         event.setSoLuongGioiHan(request.getSoLuongGioiHan());
         event.setNguoiDang(poster); // Gán người tạo
-        event.setTrangThai(EventStatus.DRAFT); // Mặc định là bản nháp, ADMIN sẽ duyệt sau
+        // === SỬA ĐOẠN SET TRẠNG THÁI ===
+        if ("PENDING".equals(request.getTrangThai())) {
+            event.setTrangThai(EventStatus.PENDING); // Gửi duyệt (Chờ duyệt)
+        } else {
+            event.setTrangThai(EventStatus.DRAFT); // Mặc định là Nháp
+        }
 
         if (request.getCategoryId() != null) {
             Category category = categoryRepository.findById(request.getCategoryId())
