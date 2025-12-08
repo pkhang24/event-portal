@@ -84,6 +84,7 @@ public class EventServiceImpl implements EventService {
         }
         response.setCreatedAt(event.getCreatedAt());
         response.setIsRegistered(isRegistered); // Gán giá trị mới
+        response.setDeleted(event.isDeleted());
         return response;
     }
 
@@ -239,6 +240,12 @@ public class EventServiceImpl implements EventService {
         // (Cần kiểm tra thêm: nếu đã có người đăng ký thì không cho xóa, mà chỉ nên "hủy")
         // Tạm thời chúng ta cho phép xóa
         eventRepository.delete(event);
+
+        // Đặt cờ xóa
+        event.setDeleted(true);
+
+        // QUAN TRỌNG: Lưu lại vào DB
+        eventRepository.save(event);
     }
 
     @Override
