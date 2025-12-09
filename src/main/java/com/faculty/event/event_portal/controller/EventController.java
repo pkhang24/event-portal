@@ -66,6 +66,31 @@ public class EventController {
         return ResponseEntity.ok(updatedEvent);
     }
 
+    // ...
+
+    // API: Lấy thùng rác của tôi (Poster)
+    // GET /api/events/my-trash
+    @GetMapping("/my-trash")
+    public ResponseEntity<List<EventResponse>> getMyTrash(Authentication authentication) {
+        return ResponseEntity.ok(eventService.getMyDeletedEvents(authentication.getName()));
+    }
+
+    // API: Khôi phục sự kiện
+    // POST /api/events/{id}/restore
+    @PostMapping("/{id}/restore")
+    public ResponseEntity<Void> restoreEvent(@PathVariable Long id, Authentication authentication) {
+        eventService.restoreEvent(id, authentication.getName());
+        return ResponseEntity.ok().build();
+    }
+
+    // API: Xóa vĩnh viễn
+    // DELETE /api/events/{id}/permanent
+    @DeleteMapping("/{id}/permanent")
+    public ResponseEntity<Void> permanentDelete(@PathVariable Long id, Authentication authentication) {
+        eventService.permanentDelete(id, authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
+
     // API 5: Xóa sự kiện - YÊU CẦU VAI TRÒ POSTER (chủ sở hữu) hoặc ADMIN
     // DELETE http://localhost:8080/api/events/1
     @DeleteMapping("/{id}")

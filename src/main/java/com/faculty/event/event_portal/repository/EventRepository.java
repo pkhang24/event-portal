@@ -63,6 +63,24 @@ public interface EventRepository extends JpaRepository<Event, Long>, JpaSpecific
     @Query(value = "SELECT * FROM events e WHERE e.id = :id AND e.deleted_at IS NOT NULL", nativeQuery = true)
     Optional<Event> findSoftDeletedById(@Param("id") Long id);
 
+    // --- [MỚI] HÀM CHO POSTER: Tìm sự kiện đã xóa của riêng Poster ---
+    @Query(value = "SELECT * FROM events e WHERE e.deleted_at IS NOT NULL AND e.nguoi_dang_id = :userId", nativeQuery = true)
+    List<Event> findSoftDeletedByUserId(@Param("userId") Long userId);
+
+    // --- [MỚI] Tìm 1 sự kiện đã xóa (để khôi phục/xóa cứng) ---
+    @Query(value = "SELECT * FROM events e WHERE e.id = :id AND e.deleted_at IS NOT NULL", nativeQuery = true)
+    Optional<Event> findDeletedById(@Param("id") Long id);
+
+    // --- [MỚI] Khôi phục sự kiện (Set deleted_at về NULL) ---
+    @Modifying
+    @Query(value = "UPDATE events SET deleted_at = NULL WHERE id = :id", nativeQuery = true)
+    void restoreEvent(@Param("id") Long id);
+
+    // [MỚI] Xóa sạch các vé đăng ký trước khi xóa sự kiện (để tránh lỗi FK)
+    @Modifying
+    @Query(value = "DELETE FROM registrations WHERE event_id = :eventId", nativeQuery = true)
+    void deleteRegistrationsByEventId(@Param("eventId") Long eventId);
+
     // 3. Xóa VĨNH VIỄN (DÙNG NATIVE QUERY)
     @Modifying
     @Query(value = "DELETE FROM events WHERE id = :id", nativeQuery = true)

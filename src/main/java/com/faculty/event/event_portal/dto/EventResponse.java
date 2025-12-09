@@ -22,5 +22,5 @@ public class EventResponse {
     private String tenDanhMuc;
     private LocalDateTime createdAt;
     private Boolean isRegistered; // Thêm trường này (có thể null nếu user chưa đăng nhập)
-    private boolean deleted;
+//    private boolean deleted;
 }

@@ -26,6 +26,15 @@ public interface EventService {
     // Xóa sự kiện (cho POSTER/ADMIN)
     void deleteEvent(Long id, String userEmail);
 
+    // 1. Lấy danh sách các sự kiện đã xóa của Poster
+    List<EventResponse> getMyDeletedEvents(String posterEmail);
+
+    // 2. Khôi phục sự kiện từ thùng rác
+    void restoreEvent(Long id, String userEmail);
+
+    // 3. Xóa vĩnh viễn sự kiện
+    void permanentDelete(Long id, String userEmail);
+
     List<ParticipantResponse> getEventParticipants(Long eventId, String posterEmail);
     byte[] exportEventParticipantsToExcel(Long eventId, String posterEmail) throws IOException; // Dùng để trả về file Excel
 }

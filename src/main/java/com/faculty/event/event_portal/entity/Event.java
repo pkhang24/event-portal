@@ -59,8 +59,8 @@ public class Event {
     @Column(nullable = true)
     private LocalDateTime deletedAt;
 
-    @Column(name = "is_deleted") // Tên cột trong Database
-    private boolean deleted = false; // Mặc định là false (chưa xóa)
+//    @Column(name = "is_deleted") // Tên cột trong Database
+//    private boolean deleted = false; // Mặc định là false (chưa xóa)
 
     // --- Định nghĩa Quan hệ (Relationship) ---
 

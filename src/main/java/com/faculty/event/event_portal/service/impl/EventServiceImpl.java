@@ -22,6 +22,8 @@ import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
@@ -84,7 +86,7 @@ public class EventServiceImpl implements EventService {
         }
         response.setCreatedAt(event.getCreatedAt());
         response.setIsRegistered(isRegistered); // Gán giá trị mới
-        response.setDeleted(event.isDeleted());
+//        response.setDeleted(event.isDeleted());
         return response;
     }
 
@@ -223,6 +225,7 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
+    @Transactional
     public void deleteEvent(Long id, String userEmail) {
         // 1. Tìm sự kiện
         Event event = eventRepository.findById(id)
@@ -241,11 +244,11 @@ public class EventServiceImpl implements EventService {
         // Tạm thời chúng ta cho phép xóa
         eventRepository.delete(event);
 
-        // Đặt cờ xóa
-        event.setDeleted(true);
-
-        // QUAN TRỌNG: Lưu lại vào DB
-        eventRepository.save(event);
+//        // Đặt cờ xóa
+//        event.setDeleted(true);
+//
+//        // QUAN TRỌNG: Lưu lại vào DB
+//        eventRepository.save(event);
     }
 
     @Override
@@ -258,6 +261,58 @@ public class EventServiceImpl implements EventService {
                 // Khi poster xem sự kiện của mình, không cần check "isRegistered"
                 .map(event -> convertToResponse(event, false))
                 .collect(Collectors.toList());
+    }
+
+    // 1. Lấy danh sách thùng rác của Poster
+    @Override
+    public List<EventResponse> getMyDeletedEvents(String posterEmail) {
+        User poster = userRepository.findByEmail(posterEmail)
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+
+        // Gọi Native Query để tìm các bài đã xóa của user này
+        List<Event> deletedEvents = eventRepository.findSoftDeletedByUserId(poster.getId());
+
+        return deletedEvents.stream()
+                .map(event -> convertToResponse(event, false))
+                .collect(Collectors.toList());
+    }
+
+    // 2. Khôi phục sự kiện (Dành cho Poster)
+    @Override
+    @Transactional
+    public void restoreEvent(Long id, String userEmail) {
+        // Tìm sự kiện trong thùng rác
+        Event event = eventRepository.findDeletedById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy sự kiện trong thùng rác"));
+
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+
+        // Check quyền: Phải là chủ sở hữu hoặc Admin
+        if (!event.getNguoiDang().getId().equals(user.getId()) && user.getRole() != Role.ADMIN) {
+            throw new AccessDeniedException("Bạn không có quyền khôi phục sự kiện này");
+        }
+
+        // Thực hiện khôi phục
+        eventRepository.restoreEvent(id);
+    }
+
+    // 3. Xóa vĩnh viễn (Dành cho Poster)
+    @Override
+    @Transactional
+    public void permanentDelete(Long id, String userEmail) {
+        Event event = eventRepository.findDeletedById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy sự kiện"));
+
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+
+        if (!event.getNguoiDang().getId().equals(user.getId()) && user.getRole() != Role.ADMIN) {
+            throw new AccessDeniedException("Bạn không có quyền xóa vĩnh viễn sự kiện này");
+        }
+
+        eventRepository.deleteRegistrationsByEventId(id);
+        eventRepository.permanentDelete(id);
     }
 
     // Import thêm: java.util.ArrayList, com.faculty.event.event_portal.dto.ParticipantResponse
