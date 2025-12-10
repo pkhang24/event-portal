@@ -99,6 +99,22 @@ public class AdminController {
         return ResponseEntity.ok().build();
     }
 
+    // Admin Từ chối sự kiện
+    @PutMapping("/events/{id}/reject")
+    public ResponseEntity<Void> rejectEvent(@PathVariable Long id, @RequestBody(required = false) Map<String, String> body) {
+        String reason = body != null ? body.get("reason") : "";
+        eventService.rejectEvent(id, reason);
+        return ResponseEntity.ok().build();
+    }
+
+    // Admin Hủy sự kiện
+    @PutMapping("/events/{id}/cancel")
+    public ResponseEntity<Void> cancelEvent(@PathVariable Long id, @RequestBody(required = false) Map<String, String> body) {
+        String reason = body != null ? body.get("reason") : "";
+        eventService.cancelEvent(id, reason);
+        return ResponseEntity.ok().build();
+    }
+
     // --- QUẢN LÝ CATEGORY ---
     @GetMapping("/categories")
     public ResponseEntity<List<CategoryResponse>> getAllCategories() { // Sửa kiểu trả về
@@ -166,8 +182,8 @@ public class AdminController {
     // API 5: (Admin) Lấy TẤT CẢ sự kiện (draft, published)
     // GET /api/admin/events
     @GetMapping("/events")
-    public ResponseEntity<List<EventResponse>> getAllEventsForAdmin() {
-        return ResponseEntity.ok(adminService.getAllEventsForAdmin());
+    public ResponseEntity<List<EventResponse>> getAllEvents() {
+        return ResponseEntity.ok(eventService.getAllEventsForAdmin());
     }
 
     // --- USER TRASH ---

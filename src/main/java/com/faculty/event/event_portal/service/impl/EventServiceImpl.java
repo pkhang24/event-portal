@@ -81,8 +81,13 @@ public class EventServiceImpl implements EventService {
         // 2. Map Danh Mục (MỚI THÊM)
         if (event.getCategory() != null) {
             response.setTenDanhMuc(event.getCategory().getTenDanhMuc());
+
+            // === THÊM DÒNG NÀY ===
+            response.setCategoryId(event.getCategory().getId());
+            // ====================
         } else {
             response.setTenDanhMuc("Sự kiện chung");
+            response.setCategoryId(null);
         }
         response.setCreatedAt(event.getCreatedAt());
         response.setIsRegistered(isRegistered); // Gán giá trị mới
@@ -100,6 +105,21 @@ public class EventServiceImpl implements EventService {
         return eventRepository.findAll(spec, sort) // Dùng findAll có Specification
                 .stream()
                 .map(event -> convertToResponse(event, false)) // Mặc định là false
+                .collect(Collectors.toList());
+    }
+
+    // Hàm lấy danh sách cho Admin (Đã loại bỏ DRAFT)
+    @Override
+    public List<EventResponse> getAllEventsForAdmin() {
+        // Lấy tất cả sự kiện có trạng thái KHÔNG PHẢI LÀ DRAFT
+        // Sắp xếp theo ngày tạo mới nhất (hoặc ngày bắt đầu tùy bạn)
+        List<Event> events = eventRepository.findAllByTrangThaiNot(
+                EventStatus.DRAFT,
+                Sort.by(Sort.Direction.DESC, "createdAt")
+        );
+
+        return events.stream()
+                .map(event -> convertToResponse(event, false))
                 .collect(Collectors.toList());
     }
 
@@ -220,6 +240,17 @@ public class EventServiceImpl implements EventService {
             event.setCategory(null); // Cho phép gỡ bỏ category
         }
 
+        if (request.getTrangThai() != null) {
+            if ("PENDING".equals(request.getTrangThai())) {
+                event.setTrangThai(EventStatus.PENDING); // Gửi duyệt
+
+                // (Optional) Gửi thông báo cho Admin tại đây nếu muốn
+
+            } else if ("DRAFT".equals(request.getTrangThai())) {
+                event.setTrangThai(EventStatus.DRAFT); // Về nháp
+            }
+        }
+
         Event updatedEvent = eventRepository.save(event);
         return convertToResponse(updatedEvent, false);
     }
@@ -249,6 +280,62 @@ public class EventServiceImpl implements EventService {
 //
 //        // QUAN TRỌNG: Lưu lại vào DB
 //        eventRepository.save(event);
+    }
+
+    // 1. Admin TỪ CHỐI (Kèm lý do và thông báo)
+    @Override
+    public void rejectEvent(Long eventId, String reason) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new EntityNotFoundException("Event not found"));
+
+        if (event.getTrangThai() != EventStatus.PENDING) {
+            throw new IllegalStateException("Chỉ từ chối được sự kiện đang chờ duyệt");
+        }
+
+        // Đổi trạng thái
+        event.setTrangThai(EventStatus.DRAFT);
+        eventRepository.save(event);
+
+        // === GỬI THÔNG BÁO CHO POSTER ===
+        String notifyContent = "Sự kiện '" + event.getTieuDe() + "' đã bị từ chối.";
+        if (reason != null && !reason.trim().isEmpty()) {
+            notifyContent += " Lý do: " + reason;
+        }
+
+        notificationService.createNotification(
+                event.getNguoiDang(), // Người nhận (Poster)
+                "Sự kiện bị từ chối",  // Tiêu đề
+                notifyContent,         // Nội dung kèm lý do
+                "ERROR"                // Loại thông báo (Màu đỏ)
+        );
+    }
+
+    // 2. Admin HỦY (Kèm lý do và thông báo)
+    @Override
+    public void cancelEvent(Long eventId, String reason) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new EntityNotFoundException("Event not found"));
+
+        if (event.getTrangThai() != EventStatus.PUBLISHED) {
+            throw new IllegalStateException("Chỉ hủy được sự kiện đã công khai");
+        }
+
+        // Đổi trạng thái
+        event.setTrangThai(EventStatus.CANCELLED);
+        eventRepository.save(event);
+
+        // === GỬI THÔNG BÁO CHO POSTER ===
+        String notifyContent = "Sự kiện '" + event.getTieuDe() + "' đã bị Admin hủy bỏ.";
+        if (reason != null && !reason.trim().isEmpty()) {
+            notifyContent += " Lý do: " + reason;
+        }
+
+        notificationService.createNotification(
+                event.getNguoiDang(),
+                "Sự kiện bị hủy",
+                notifyContent,
+                "ERROR"
+        );
     }
 
     @Override

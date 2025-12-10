@@ -20,6 +20,7 @@ public class EventResponse {
     private int luotXem;
     private String tenNguoiDang; // Thêm thông tin người đăng cho đẹp
     private String tenDanhMuc;
+    private Long categoryId;
     private LocalDateTime createdAt;
     private Boolean isRegistered; // Thêm trường này (có thể null nếu user chưa đăng nhập)
 //    private boolean deleted;

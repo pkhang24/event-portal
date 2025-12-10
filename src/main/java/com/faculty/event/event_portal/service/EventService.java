@@ -12,6 +12,8 @@ public interface EventService {
     // Lấy tất cả sự kiện (public, đã PUBLISHED)
     List<EventResponse> getAllPublishedEvents(String search, String status, Long categoryId);
 
+    List<EventResponse> getAllEventsForAdmin();
+
     List<EventResponse> getMyEvents(String posterEmail);
 
     // Lấy chi tiết 1 sự kiện (public)
@@ -25,6 +27,10 @@ public interface EventService {
 
     // Xóa sự kiện (cho POSTER/ADMIN)
     void deleteEvent(Long id, String userEmail);
+
+    void rejectEvent(Long EventId, String reason);
+
+    void cancelEvent(Long EventId, String reason);
 
     // 1. Lấy danh sách các sự kiện đã xóa của Poster
     List<EventResponse> getMyDeletedEvents(String posterEmail);

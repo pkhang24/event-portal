@@ -3,6 +3,7 @@ package com.faculty.event.event_portal.repository;
 import com.faculty.event.event_portal.entity.Event;
 import com.faculty.event.event_portal.entity.EventStatus;
 import com.faculty.event.event_portal.entity.User;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import org.springframework.data.jpa.repository.Query;
@@ -21,6 +22,8 @@ public interface EventRepository extends JpaRepository<Event, Long>, JpaSpecific
     // Ví dụ: tìm sự kiện theo trạng thái, tìm sự kiện sắp diễn ra...
     // Trong file EventRepository.java
     List<Event> findAllByTrangThai(EventStatus status);
+
+    List<Event> findAllByTrangThaiNot(EventStatus status, Sort sort);
 
     List<Event> findAllByNguoiDang(User nguoiDang);
 
