@@ -11,6 +11,7 @@ public class EventResponse {
     private String moTaNgan;
     private String noiDung; // Cần cho trang chi tiết
     private String anhThumbnail;
+    private String anhBia;
     private LocalDateTime thoiGianBatDau;
     private LocalDateTime thoiGianKetThuc;
     private String diaDiem;

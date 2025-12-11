@@ -3,6 +3,8 @@ package com.faculty.event.event_portal.service;
 import com.faculty.event.event_portal.dto.EventRequest;
 import com.faculty.event.event_portal.dto.EventResponse;
 import com.faculty.event.event_portal.dto.ParticipantResponse;
+import org.springframework.web.multipart.MultipartFile;
+
 import java.io.IOException;
 
 import java.util.List;
@@ -19,11 +21,11 @@ public interface EventService {
     // Lấy chi tiết 1 sự kiện (public)
     EventResponse getEventById(Long id);
 
-    // Tạo sự kiện mới (cho POSTER)
-    EventResponse createEvent(EventRequest request, String posterEmail);
+    /// SỬA: Thêm MultipartFile image vào tham số
+    EventResponse createEvent(EventRequest request, MultipartFile image, MultipartFile coverImage, String posterEmail);
 
-    // Cập nhật sự kiện (cho POSTER)
-    EventResponse updateEvent(Long id, EventRequest request, String posterEmail);
+    // SỬA: Thêm MultipartFile image vào tham số
+    EventResponse updateEvent(Long id, EventRequest request, MultipartFile image, MultipartFile coverImage, String posterEmail);
 
     // Xóa sự kiện (cho POSTER/ADMIN)
     void deleteEvent(Long id, String userEmail);

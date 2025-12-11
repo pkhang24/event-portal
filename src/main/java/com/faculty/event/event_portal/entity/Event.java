@@ -32,7 +32,11 @@ public class Event {
     @Column(columnDefinition = "TEXT") // Dùng TEXT cho nội dung dài
     private String noiDung;
 
+    @Column(name = "anh_thumbnail")
     private String anhThumbnail; // URL của ảnh
+
+    @Column(name = "anh_bia") // Tên cột trong database (nếu cần)
+    private String anhBia;
 
     @Column(nullable = false)
     private LocalDateTime thoiGianBatDau;

@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.List;
@@ -44,25 +45,33 @@ public class EventController {
         return ResponseEntity.ok(event);
     }
 
-    // API 3: Tạo sự kiện mới - YÊU CẦU VAI TRÒ POSTER
-    // POST http://localhost:8080/api/events
-    @PostMapping
-    public ResponseEntity<EventResponse> createEvent(@RequestBody EventRequest request,
-                                                     Authentication authentication) {
-        // Lấy email của POSTER từ token đã xác thực
+    // API 3: Tạo mới
+    @PostMapping(consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
+    public ResponseEntity<EventResponse> createEvent(
+            @ModelAttribute EventRequest request,
+            @RequestParam(value = "image", required = false) MultipartFile image,
+            // 👇 THÊM THAM SỐ NÀY
+            @RequestParam(value = "coverImage", required = false) MultipartFile coverImage,
+            Authentication authentication) {
+
         String email = authentication.getName();
-        EventResponse createdEvent = eventService.createEvent(request, email);
-        return ResponseEntity.status(201).body(createdEvent); // 201 Created
+        // Truyền thêm coverImage vào hàm service
+        EventResponse createdEvent = eventService.createEvent(request, image, coverImage, email);
+        return ResponseEntity.status(201).body(createdEvent);
     }
 
-    // API 4: Cập nhật sự kiện - YÊU CẦU VAI TRÒ POSTER (là chủ sở hữu)
-    // PUT http://localhost:8080/api/events/1
-    @PutMapping("/{id}")
-    public ResponseEntity<EventResponse> updateEvent(@PathVariable Long id,
-                                                     @RequestBody EventRequest request,
-                                                     Authentication authentication) {
+    // API 4: Cập nhật
+    @PutMapping(value = "/{id}", consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
+    public ResponseEntity<EventResponse> updateEvent(
+            @PathVariable Long id,
+            @ModelAttribute EventRequest request,
+            @RequestParam(value = "image", required = false) MultipartFile image,
+            // 👇 THÊM THAM SỐ NÀY
+            @RequestParam(value = "coverImage", required = false) MultipartFile coverImage,
+            Authentication authentication) {
+
         String email = authentication.getName();
-        EventResponse updatedEvent = eventService.updateEvent(id, request, email);
+        EventResponse updatedEvent = eventService.updateEvent(id, request, image, coverImage, email);
         return ResponseEntity.ok(updatedEvent);
     }
 

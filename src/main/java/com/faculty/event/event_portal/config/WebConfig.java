@@ -34,6 +34,6 @@ public class WebConfig implements WebMvcConfigurer{
         String uploadPath = Paths.get("uploads").toAbsolutePath().toUri().toString();
 
         registry.addResourceHandler("/uploads/**")
-                .addResourceLocations(uploadPath);
+                .addResourceLocations("file:./uploads/");
     }
 }

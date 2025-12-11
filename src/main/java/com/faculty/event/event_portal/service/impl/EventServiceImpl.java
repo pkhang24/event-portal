@@ -14,8 +14,13 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.apache.poi.ss.usermodel.Cell;
@@ -23,6 +28,7 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -35,6 +41,39 @@ public class EventServiceImpl implements EventService {
     private final RegistrationRepository registrationRepository; // Inject thêm cái này
     private final CategoryRepository categoryRepository;
     private final NotificationService notificationService;
+
+    private final Path fileStorageLocation = Paths.get("uploads").toAbsolutePath().normalize();
+
+    // Hàm hỗ trợ lưu file
+    private String storeFile(MultipartFile file) {
+        if (file == null || file.isEmpty()) return null;
+
+        try {
+            // Tạo thư mục nếu chưa có
+            if (!Files.exists(fileStorageLocation)) {
+                Files.createDirectories(fileStorageLocation);
+            }
+
+            // Tạo tên file ngẫu nhiên để tránh trùng (UUID)
+            String originalFileName = file.getOriginalFilename();
+            // Lấy đuôi file (jpg, png)
+            String fileExtension = "";
+            if (originalFileName != null && originalFileName.contains(".")) {
+                fileExtension = originalFileName.substring(originalFileName.lastIndexOf("."));
+            }
+
+            // Tên file mới: UUID + đuôi file
+            String newFileName = UUID.randomUUID().toString() + fileExtension;
+
+            // Copy file vào thư mục đích
+            Path targetLocation = fileStorageLocation.resolve(newFileName);
+            Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
+
+            return newFileName; // Trả về tên file để lưu vào DB
+        } catch (IOException ex) {
+            throw new RuntimeException("Không thể lưu file " + file.getOriginalFilename(), ex);
+        }
+    }
 
 
     public EventServiceImpl(EventRepository eventRepository,
@@ -57,6 +96,7 @@ public class EventServiceImpl implements EventService {
         response.setMoTaNgan(event.getMoTaNgan());
         response.setNoiDung(event.getNoiDung());
         response.setAnhThumbnail(event.getAnhThumbnail());
+        response.setAnhBia(event.getAnhBia());
         response.setThoiGianBatDau(event.getThoiGianBatDau());
         response.setThoiGianKetThuc(event.getThoiGianKetThuc());
         response.setDiaDiem(event.getDiaDiem());
@@ -154,7 +194,7 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
-    public EventResponse createEvent(EventRequest request, String posterEmail) {
+    public EventResponse createEvent(EventRequest request, MultipartFile image, MultipartFile coverImage, String posterEmail) {
         // 1. Tìm user (người đăng)
         User poster = userRepository.findByEmail(posterEmail)
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy người đăng"));
@@ -164,7 +204,21 @@ public class EventServiceImpl implements EventService {
         event.setTieuDe(request.getTieuDe());
         event.setMoTaNgan(request.getMoTaNgan());
         event.setNoiDung(request.getNoiDung());
-        event.setAnhThumbnail(request.getAnhThumbnail());
+//        event.setAnhThumbnail(request.getAnhThumbnail());
+        if (image != null && !image.isEmpty()) {
+            String fileName = storeFile(image); // Lưu file vào ổ cứng
+            event.setAnhThumbnail(fileName);    // Lưu TÊN FILE vào DB (Ví dụ: 3c1f4692....jpg)
+        } else {
+            // Nếu không chọn ảnh, có thể để null hoặc ảnh mặc định
+            event.setAnhThumbnail(null);
+        }
+        if (coverImage != null && !coverImage.isEmpty()) {
+            String coverName = storeFile(coverImage); // Lưu file
+            event.setAnhBia(coverName);               // Lưu tên vào DB
+        } else {
+            // Nếu không chọn ảnh, có thể để null hoặc ảnh mặc định
+            event.setAnhBia(null);
+        }
         event.setThoiGianBatDau(request.getThoiGianBatDau());
         event.setThoiGianKetThuc(request.getThoiGianKetThuc());
         event.setDiaDiem(request.getDiaDiem());
@@ -208,7 +262,7 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
-    public EventResponse updateEvent(Long id, EventRequest request, String posterEmail) {
+    public EventResponse updateEvent(Long id, EventRequest request, MultipartFile image, MultipartFile coverImage, String posterEmail) {
         // 1. Tìm sự kiện
         Event event = eventRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy sự kiện"));
@@ -226,7 +280,19 @@ public class EventServiceImpl implements EventService {
         event.setTieuDe(request.getTieuDe());
         event.setMoTaNgan(request.getMoTaNgan());
         event.setNoiDung(request.getNoiDung());
-        event.setAnhThumbnail(request.getAnhThumbnail());
+//        event.setAnhThumbnail(request.getAnhThumbnail());
+        if (image != null && !image.isEmpty()) {
+            // 1. Xóa ảnh cũ đi trước khi lưu ảnh mới (để tránh rác server)
+            deleteFile(event.getAnhThumbnail());
+            // 2. Lưu ảnh mới
+            String fileName = storeFile(image);
+            event.setAnhThumbnail(fileName);
+        }
+        if (coverImage != null && !coverImage.isEmpty()) { // <--- Phải check 'coverImage'
+            deleteFile(event.getAnhBia());
+            String coverName = storeFile(coverImage);      // <--- Phải store 'coverImage'
+            event.setAnhBia(coverName);
+        }
         event.setThoiGianBatDau(request.getThoiGianBatDau());
         event.setThoiGianKetThuc(request.getThoiGianKetThuc());
         event.setDiaDiem(request.getDiaDiem());
@@ -384,6 +450,18 @@ public class EventServiceImpl implements EventService {
         eventRepository.restoreEvent(id);
     }
 
+    // Hàm xóa file khỏi ổ cứng
+    private void deleteFile(String fileName) {
+        if (fileName == null || fileName.isEmpty()) return;
+        try {
+            Path filePath = fileStorageLocation.resolve(fileName).normalize();
+            Files.deleteIfExists(filePath); // Xóa file nếu tồn tại
+            System.out.println("Đã xóa file: " + fileName);
+        } catch (IOException ex) {
+            System.err.println("Không thể xóa file: " + fileName);
+        }
+    }
+
     // 3. Xóa vĩnh viễn (Dành cho Poster)
     @Override
     @Transactional
@@ -398,6 +476,10 @@ public class EventServiceImpl implements EventService {
             throw new AccessDeniedException("Bạn không có quyền xóa vĩnh viễn sự kiện này");
         }
 
+        deleteFile(event.getAnhThumbnail()); // Xóa thumbnail
+        deleteFile(event.getAnhBia()); // Xóa ảnh bìa (nếu có)
+
+        eventRepository.delete(event);
         eventRepository.deleteRegistrationsByEventId(id);
         eventRepository.permanentDelete(id);
     }
