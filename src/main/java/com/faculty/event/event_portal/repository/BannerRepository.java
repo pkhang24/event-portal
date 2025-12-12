@@ -17,6 +17,11 @@ public interface BannerRepository extends JpaRepository<Banner, Long> {
     // Lấy tất cả banner đang hoạt động
     List<Banner> findAllByIsActiveTrue();
 
+    List<Banner> findAllByDeletedAtIsNotNull();
+
+    @Query(value = "SELECT * FROM banners WHERE id = ?1", nativeQuery = true)
+    Optional<Banner> findDeletedById(Long id);
+
     // 1. Tìm thùng rác
     @Query(value = "SELECT * FROM banners WHERE deleted_at IS NOT NULL", nativeQuery = true)
     List<Banner> findSoftDeleted();

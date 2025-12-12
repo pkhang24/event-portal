@@ -152,33 +152,6 @@ public class AdminController {
         return ResponseEntity.ok(adminService.getEventRegistrationStats());
     }
 
-    // --- 4. QUẢN LÝ BANNER (CRUD) ---
-
-    // GET /api/admin/banners
-    @GetMapping("/banners")
-    public ResponseEntity<List<Banner>> getAllBanners() {
-        return ResponseEntity.ok(bannerService.getAllBanners());
-    }
-
-    // POST /api/admin/banners
-    @PostMapping("/banners")
-    public ResponseEntity<Banner> createBanner(@RequestBody Banner banner) {
-        return ResponseEntity.status(201).body(bannerService.createBanner(banner));
-    }
-
-    // PUT /api/admin/banners/{id}
-    @PutMapping("/banners/{id}")
-    public ResponseEntity<Banner> updateBanner(@PathVariable Long id, @RequestBody Banner bannerDetails) {
-        return ResponseEntity.ok(bannerService.updateBanner(id, bannerDetails));
-    }
-
-    // DELETE /api/admin/banners/{id}
-    @DeleteMapping("/banners/{id}")
-    public ResponseEntity<Void> deleteBanner(@PathVariable Long id) {
-        bannerService.deleteBanner(id);
-        return ResponseEntity.noContent().build();
-    }
-
     // API 5: (Admin) Lấy TẤT CẢ sự kiện (draft, published)
     // GET /api/admin/events
     @GetMapping("/events")
@@ -242,23 +215,6 @@ public class AdminController {
     @DeleteMapping("/categories/trash/hard-delete/{id}")
     public ResponseEntity<Void> hardDeleteCategory(@PathVariable Long id) {
         adminService.hardDeleteCategory(id);
-        return ResponseEntity.noContent().build();
-    }
-
-    // === Banner Trash ===
-    @GetMapping("/banners/trash")
-    public ResponseEntity<List<Banner>> getDeletedBanners() {
-        return ResponseEntity.ok(adminService.getDeletedBanners());
-    }
-
-    @PutMapping("/banners/trash/restore/{id}")
-    public ResponseEntity<Banner> restoreBanner(@PathVariable Long id) {
-        return ResponseEntity.ok(adminService.restoreBanner(id));
-    }
-
-    @DeleteMapping("/banners/trash/hard-delete/{id}")
-    public ResponseEntity<Void> hardDeleteBanner(@PathVariable Long id) {
-        adminService.hardDeleteBanner(id);
         return ResponseEntity.noContent().build();
     }
 
