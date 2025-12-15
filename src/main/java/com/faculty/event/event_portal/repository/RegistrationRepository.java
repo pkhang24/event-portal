@@ -4,10 +4,12 @@ import com.faculty.event.event_portal.entity.Event;
 import com.faculty.event.event_portal.entity.Registration;
 import com.faculty.event.event_portal.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -30,6 +32,19 @@ public interface RegistrationRepository extends JpaRepository<Registration, Long
     // (Bạn đã có hàm existsByUserAndEvent và findAllByUser rồi)
     // Thêm hàm này:
     long countByEvent(Event event);
+
+    // Thêm hàm xóa tất cả lượt đăng ký của 1 user
+    // @Transactional và @Modifying là bắt buộc cho lệnh DELETE/UPDATE tùy chỉnh
+    @Modifying
+    @org.springframework.transaction.annotation.Transactional
+    @Query("DELETE FROM Registration r WHERE r.user.id = :userId")
+    void deleteAllByUserId(@Param("userId") Long userId);
+
+    // Xóa tất cả vé của một sự kiện
+    @Modifying
+    @Transactional
+    @Query(value = "DELETE FROM registrations WHERE event_id = :eventId", nativeQuery = true)
+    void deleteRegistrationsByEventId(@Param("eventId") Long eventId);
 
     // Lấy lịch sử: vé đã ATTENDED và sự kiện đã KẾT THÚC (thoiGianKetThuc < now)
     @Query("SELECT r FROM Registration r " +

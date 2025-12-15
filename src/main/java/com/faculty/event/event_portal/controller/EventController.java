@@ -4,12 +4,11 @@ import com.faculty.event.event_portal.dto.EventRequest;
 import com.faculty.event.event_portal.dto.EventResponse;
 import com.faculty.event.event_portal.dto.ParticipantResponse;
 import com.faculty.event.event_portal.service.EventService;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -25,8 +24,7 @@ public class EventController {
         this.eventService = eventService;
     }
 
-    // API 1: Lấy danh sách sự kiện (cho trang chủ) - PUBLIC
-    // GET http://localhost:8080/api/events
+    // 1. Lấy danh sách public (Trang chủ)
     @GetMapping
     public ResponseEntity<List<EventResponse>> getAllPublishedEvents(
             @RequestParam(required = false) String search,
@@ -37,81 +35,39 @@ public class EventController {
         return ResponseEntity.ok(events);
     }
 
-    // API 2: Lấy chi tiết 1 sự kiện - PUBLIC
-    // GET http://localhost:8080/api/events/1
+    // 2. Chi tiết sự kiện
     @GetMapping("/{id}")
     public ResponseEntity<EventResponse> getEventById(@PathVariable Long id) {
         EventResponse event = eventService.getEventById(id);
         return ResponseEntity.ok(event);
     }
 
-    // API 3: Tạo mới
+    // 3. Tạo sự kiện (Poster)
     @PostMapping(consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
     public ResponseEntity<EventResponse> createEvent(
             @ModelAttribute EventRequest request,
             @RequestParam(value = "image", required = false) MultipartFile image,
-            // 👇 THÊM THAM SỐ NÀY
             @RequestParam(value = "coverImage", required = false) MultipartFile coverImage,
             Authentication authentication) {
-
         String email = authentication.getName();
-        // Truyền thêm coverImage vào hàm service
         EventResponse createdEvent = eventService.createEvent(request, image, coverImage, email);
         return ResponseEntity.status(201).body(createdEvent);
     }
 
-    // API 4: Cập nhật
+    // 4. Cập nhật sự kiện (Poster)
     @PutMapping(value = "/{id}", consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
     public ResponseEntity<EventResponse> updateEvent(
             @PathVariable Long id,
             @ModelAttribute EventRequest request,
             @RequestParam(value = "image", required = false) MultipartFile image,
-            // 👇 THÊM THAM SỐ NÀY
             @RequestParam(value = "coverImage", required = false) MultipartFile coverImage,
             Authentication authentication) {
-
         String email = authentication.getName();
         EventResponse updatedEvent = eventService.updateEvent(id, request, image, coverImage, email);
         return ResponseEntity.ok(updatedEvent);
     }
 
-    // ...
-
-    // API: Lấy thùng rác của tôi (Poster)
-    // GET /api/events/my-trash
-    @GetMapping("/my-trash")
-    public ResponseEntity<List<EventResponse>> getMyTrash(Authentication authentication) {
-        return ResponseEntity.ok(eventService.getMyDeletedEvents(authentication.getName()));
-    }
-
-    // API: Khôi phục sự kiện
-    // POST /api/events/{id}/restore
-    @PostMapping("/{id}/restore")
-    public ResponseEntity<Void> restoreEvent(@PathVariable Long id, Authentication authentication) {
-        eventService.restoreEvent(id, authentication.getName());
-        return ResponseEntity.ok().build();
-    }
-
-    // API: Xóa vĩnh viễn
-    // DELETE /api/events/{id}/permanent
-    @DeleteMapping("/{id}/permanent")
-    public ResponseEntity<Void> permanentDelete(@PathVariable Long id, Authentication authentication) {
-        eventService.permanentDelete(id, authentication.getName());
-        return ResponseEntity.noContent().build();
-    }
-
-    // API 5: Xóa sự kiện - YÊU CẦU VAI TRÒ POSTER (chủ sở hữu) hoặc ADMIN
-    // DELETE http://localhost:8080/api/events/1
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteEvent(@PathVariable Long id,
-                                            Authentication authentication) {
-        String email = authentication.getName();
-        eventService.deleteEvent(id, email);
-        return ResponseEntity.noContent().build(); // 204 No Content
-    }
-
-    // API 6: (Poster) Lấy danh sách sự kiện do TÔI tạo
-    // GET http://localhost:8080/api/events/my-events
+    // 5. [QUAN TRỌNG] Lấy danh sách sự kiện do TÔI tạo (Poster)
     @GetMapping("/my-events")
     public ResponseEntity<List<EventResponse>> getMyEvents(Authentication authentication) {
         String email = authentication.getName();
@@ -119,16 +75,42 @@ public class EventController {
         return ResponseEntity.ok(events);
     }
 
-    // API 7: (Poster/Admin) Lấy danh sách SV tham gia
-    // GET /api/events/{id}/participants
+    // 6. Xóa mềm sự kiện - YÊU CẦU VAI TRÒ POSTER (chủ sở hữu) hoặc ADMIN
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteEvent(@PathVariable Long id, Authentication authentication) {
+        String email = authentication.getName();
+        eventService.deleteEvent(id, email);
+        return ResponseEntity.noContent().build();
+    }
+
+    // 7. Lấy thùng rác của tôi (Poster)
+    @GetMapping("/my-trash")
+    public ResponseEntity<List<EventResponse>> getMyTrash(Authentication authentication) {
+        return ResponseEntity.ok(eventService.getMyDeletedEvents(authentication.getName()));
+    }
+
+    // 8. Khôi phục sự kiện (Poster)
+    @PostMapping("/{id}/restore")
+    public ResponseEntity<Void> restoreEvent(@PathVariable Long id, Authentication authentication) {
+        eventService.restoreEvent(id, authentication.getName());
+        return ResponseEntity.ok().build();
+    }
+
+    // 9. Xóa vĩnh viễn (Poster)
+    @DeleteMapping("/{id}/permanent")
+    public ResponseEntity<Void> permanentDelete(@PathVariable Long id, Authentication authentication) {
+        eventService.permanentDelete(id, authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
+
+    // 10. Lấy danh sách SV tham gia (Cho Poster/Admin xem)
     @GetMapping("/{id}/participants")
     public ResponseEntity<List<ParticipantResponse>> getParticipants(@PathVariable Long id, Authentication auth) {
         List<ParticipantResponse> participants = eventService.getEventParticipants(id, auth.getName());
         return ResponseEntity.ok(participants);
     }
 
-    // API 8: (Poster/Admin) Xuất Excel danh sách SV
-    // GET /api/events/{id}/participants/export
+    // 11. Xuất Excel danh sách SV (Cho Poster/Admin)
     @GetMapping("/{id}/participants/export")
     public ResponseEntity<byte[]> exportParticipants(@PathVariable Long id, Authentication auth) {
         try {

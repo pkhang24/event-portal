@@ -18,6 +18,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -120,13 +121,16 @@ public class EventServiceImpl implements EventService {
 
         // 2. Map Danh Mục (MỚI THÊM)
         if (event.getCategory() != null) {
-            response.setTenDanhMuc(event.getCategory().getTenDanhMuc());
-
-            // === THÊM DÒNG NÀY ===
-            response.setCategoryId(event.getCategory().getId());
-            // ====================
+            try {
+                response.setTenDanhMuc(event.getCategory().getTenDanhMuc());
+                response.setCategoryId(event.getCategory().getId());
+            } catch (EntityNotFoundException | NullPointerException e) {
+                // Trường hợp Hibernate proxy lỗi do category không tìm thấy
+                response.setTenDanhMuc("Danh mục đã xóa");
+                response.setCategoryId(null);
+            }
         } else {
-            response.setTenDanhMuc("Sự kiện chung");
+            response.setTenDanhMuc("Chưa phân loại");
             response.setCategoryId(null);
         }
         response.setCreatedAt(event.getCreatedAt());
@@ -337,15 +341,12 @@ public class EventServiceImpl implements EventService {
             throw new AccessDeniedException("Bạn không có quyền xóa sự kiện này");
         }
 
-        // (Cần kiểm tra thêm: nếu đã có người đăng ký thì không cho xóa, mà chỉ nên "hủy")
-        // Tạm thời chúng ta cho phép xóa
-        eventRepository.delete(event);
+        // 4. THỰC HIỆN XÓA MỀM (Soft Delete)
+        // Thay vì eventRepository.delete(event), ta set thời gian xóa
+        event.setDeletedAt(LocalDateTime.now());
 
-//        // Đặt cờ xóa
-//        event.setDeleted(true);
-//
-//        // QUAN TRỌNG: Lưu lại vào DB
-//        eventRepository.save(event);
+        // Lưu lại cập nhật vào DB
+        eventRepository.save(event);
     }
 
     // 1. Admin TỪ CHỐI (Kèm lý do và thông báo)
@@ -382,12 +383,14 @@ public class EventServiceImpl implements EventService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new EntityNotFoundException("Event not found"));
 
+        // Chỉ cho phép hủy nếu sự kiện đã Public (hoặc tùy logic bạn)
         if (event.getTrangThai() != EventStatus.PUBLISHED) {
             throw new IllegalStateException("Chỉ hủy được sự kiện đã công khai");
         }
 
-        // Đổi trạng thái
+        // Đổi trạng thái sang CANCELLED
         event.setTrangThai(EventStatus.CANCELLED);
+        // LƯU Ý: Không set deletedAt, để nó vẫn hiện trong danh sách (tab Đã hủy)
         eventRepository.save(event);
 
         // === GỬI THÔNG BÁO CHO POSTER ===
@@ -453,12 +456,20 @@ public class EventServiceImpl implements EventService {
     // Hàm xóa file khỏi ổ cứng
     private void deleteFile(String fileName) {
         if (fileName == null || fileName.isEmpty()) return;
+
+        // 👇 THÊM ĐOẠN NÀY: Kiểm tra nếu là link online thì không làm gì cả
+        if (fileName.startsWith("http://") || fileName.startsWith("https://")) {
+            return; // Đây là ảnh URL, không phải file trên server nên bỏ qua
+        }
+        // ------------------------------------------------------------------
+
         try {
             Path filePath = fileStorageLocation.resolve(fileName).normalize();
             Files.deleteIfExists(filePath); // Xóa file nếu tồn tại
             System.out.println("Đã xóa file: " + fileName);
-        } catch (IOException ex) {
-            System.err.println("Không thể xóa file: " + fileName);
+        } catch (Exception ex) {
+            // Sửa lại catch Exception để bắt cả InvalidPathException
+            System.err.println("Không thể xóa file: " + fileName + ". Lỗi: " + ex.getMessage());
         }
     }
 
@@ -479,7 +490,7 @@ public class EventServiceImpl implements EventService {
         deleteFile(event.getAnhThumbnail()); // Xóa thumbnail
         deleteFile(event.getAnhBia()); // Xóa ảnh bìa (nếu có)
 
-        eventRepository.delete(event);
+//        eventRepository.delete(event);
         eventRepository.deleteRegistrationsByEventId(id);
         eventRepository.permanentDelete(id);
     }

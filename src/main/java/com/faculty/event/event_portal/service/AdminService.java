@@ -3,6 +3,7 @@ package com.faculty.event.event_portal.service;
 import com.faculty.event.event_portal.dto.*;
 import com.faculty.event.event_portal.entity.Banner;
 import com.faculty.event.event_portal.entity.Category;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.util.List;
@@ -12,6 +13,12 @@ public interface AdminService {
     // 1. Quản lý User
     List<UserResponse> getAllUsers();
     List<EventResponse> getAllEventsForAdmin();
+
+    // --- [QUAN TRỌNG] HÀM MỚI ĐỂ XÓA USER VÀ DỮ LIỆU LIÊN QUAN ---
+    @Transactional
+    // Đảm bảo nếu lỗi thì rollback toàn bộ
+    void deleteUser(Long userId);
+
     void changePassword(String userEmail, ChangePasswordRequest request);
     void toggleUserLock(Long userId);
 

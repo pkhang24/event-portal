@@ -79,32 +79,38 @@ public class SecurityConfig {
 
                 // 4. Phân quyền API (giữ nguyên, không .and())
                 .authorizeHttpRequests(authorize -> authorize
-                        // --- CÁC ENDPOINT PUBLIC (AI CŨNG VÀO ĐƯỢC) ---
+                        // 1. CÁC API CỤ THỂ CỦA POSTER (ĐƯA LÊN ĐẦU TIÊN)
+                        // Phải đặt cái này TRƯỚC dòng .permitAll() bên dưới
+                        .requestMatchers(HttpMethod.GET, "/api/events/my-events").hasAuthority(Role.POSTER.name()) // <--- QUAN TRỌNG
+                        .requestMatchers(HttpMethod.GET, "/api/events/my-trash").hasAuthority(Role.POSTER.name())  // <--- THÊM CÁI NÀY NỮA
+                        .requestMatchers(HttpMethod.GET, "/api/events/*/participants").hasAnyAuthority(Role.POSTER.name(), Role.ADMIN.name())
+
+                        // 2. CÁC API CỤ THỂ CỦA ADMIN
+                        .requestMatchers("/api/admin/**").hasAuthority(Role.ADMIN.name())
+
+                        // 3. SAU ĐÓ MỚI ĐẾN CÁC API PUBLIC (Wildcard)
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/uploads/**").permitAll()
+
+                        // Cho phép GET chi tiết sự kiện và danh sách public
+                        // NHƯNG loại trừ các cái đã định nghĩa ở trên (do thứ tự ưu tiên)
                         .requestMatchers(HttpMethod.GET, "/api/events/**").permitAll()
+
                         .requestMatchers(HttpMethod.GET, "/api/banners/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "*/api/profile/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
 
-                        // --- CÁC ENDPOINT CỦA ADMIN ---
-                        // Thêm dòng này để test
-                        .requestMatchers("/api/admin/stats/**").hasAuthority(Role.ADMIN.name())
-                        .requestMatchers("/api/admin/**").hasAuthority(Role.ADMIN.name())
-                        .requestMatchers(HttpMethod.DELETE, "/api/events/**").hasAnyAuthority("ADMIN", "POSTER")
+                        // --- CÁC ENDPOINT CỦA POSTER (CÁC METHOD KHÁC) ---
+                        .requestMatchers(HttpMethod.POST, "/api/events").hasAuthority(Role.POSTER.name())
+                        .requestMatchers(HttpMethod.PUT, "/api/events/**").hasAuthority(Role.POSTER.name())
+                        .requestMatchers(HttpMethod.DELETE, "/api/events/**").hasAnyAuthority(Role.POSTER.name(), Role.ADMIN.name())
+                        .requestMatchers("/api/registrations/check-in").hasAuthority(Role.POSTER.name())
+                        .requestMatchers(HttpMethod.POST, "/api/events/*/restore").hasAnyAuthority(Role.POSTER.name(), Role.ADMIN.name()) // Restore
+                        .requestMatchers(HttpMethod.DELETE, "/api/events/*/permanent").hasAnyAuthority(Role.POSTER.name(), Role.ADMIN.name()) // Permanent Delete
 
                         // --- CÁC ENDPOINT CỦA STUDENT ---
                         .requestMatchers("/api/registrations/my-tickets").hasAuthority(Role.STUDENT.name())
                         .requestMatchers(HttpMethod.POST, "/api/registrations").hasAuthority(Role.STUDENT.name())
                         .requestMatchers(HttpMethod.DELETE, "/api/registrations/**").hasAuthority(Role.STUDENT.name())
-
-                        // --- CÁC ENDPOINT CỦA POSTER ---
-                        .requestMatchers(HttpMethod.POST, "/api/events").hasAuthority(Role.POSTER.name())
-                        .requestMatchers(HttpMethod.PUT, "/api/events/**").hasAuthority(Role.POSTER.name())
-//                        .requestMatchers(HttpMethod.DELETE, "/api/events/**").hasAuthority(Role.POSTER.name())
-                        .requestMatchers("/api/registrations/check-in").hasAuthority(Role.POSTER.name())
-                        // Trong SecurityConfig.java, thêm vào mục POSTER:
-                        .requestMatchers(HttpMethod.GET, "/api/events/my-events").hasAuthority(Role.POSTER.name())
 
                         // Tất cả các request khác đều cần đăng nhập
                         .anyRequest().authenticated()

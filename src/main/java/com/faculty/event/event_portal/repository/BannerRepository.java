@@ -37,7 +37,7 @@ public interface BannerRepository extends JpaRepository<Banner, Long> {
     void restoreBanner(@Param("id") Long id);
 
     // 4. Xóa VĨNH VIỄN
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Transactional
     @Query(value = "DELETE FROM banners WHERE id = :id", nativeQuery = true)
     void permanentDelete(@Param("id") Long id);

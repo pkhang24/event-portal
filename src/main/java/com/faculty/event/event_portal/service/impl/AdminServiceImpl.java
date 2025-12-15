@@ -5,10 +5,13 @@ import com.faculty.event.event_portal.entity.*;
 import com.faculty.event.event_portal.repository.*;
 import com.faculty.event.event_portal.service.AdminService;
 import com.faculty.event.event_portal.service.NotificationService;
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.PersistenceContext;
 import org.apache.commons.io.output.ByteArrayOutputStream;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.xssf.usermodel.XSSFSheet;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.usermodel.XSSFFont;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -21,11 +24,6 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.ss.util.CellRangeAddress;
-import org.apache.poi.xssf.usermodel.XSSFFont;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-
 @Service
 public class AdminServiceImpl implements AdminService {
 
@@ -35,9 +33,31 @@ public class AdminServiceImpl implements AdminService {
     private final CategoryRepository categoryRepository;
     private final BannerRepository bannerRepository;
     private final NotificationService notificationService;
-
-    // Inject PasswordEncoder vào constructor của AdminServiceImpl
+    private final NotificationRepository notificationRepository;
     private final PasswordEncoder passwordEncoder;
+
+    @PersistenceContext
+    private EntityManager entityManager;
+
+    public AdminServiceImpl(UserRepository userRepository,
+                            EventRepository eventRepository,
+                            RegistrationRepository registrationRepository,
+                            CategoryRepository categoryRepository,
+                            BannerRepository bannerRepository,
+                            PasswordEncoder passwordEncoder,
+                            NotificationService notificationService,
+                            NotificationRepository notificationRepository) {
+        this.userRepository = userRepository;
+        this.eventRepository = eventRepository;
+        this.registrationRepository = registrationRepository;
+        this.categoryRepository = categoryRepository;
+        this.bannerRepository = bannerRepository;
+        this.notificationService = notificationService;
+        this.notificationRepository = notificationRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    // ... (Các hàm convert và helper giữ nguyên)
     private EventResponse convertToResponse(Event event, Boolean isRegistered) {
         EventResponse response = new EventResponse();
         response.setId(event.getId());
@@ -51,37 +71,25 @@ public class AdminServiceImpl implements AdminService {
         response.setSoLuongGioiHan(event.getSoLuongGioiHan());
         response.setTrangThai(event.getTrangThai().name());
         response.setLuotXem(event.getLuotXem());
-//        response.setTenNguoiDang(event.getNguoiDang().getHoTen());
+
         try {
-            if (event.getNguoiDang() != null) {
-                response.setTenNguoiDang(event.getNguoiDang().getHoTen());
+            User poster = event.getNguoiDang();
+            if (poster != null) {
+                // Nếu User bị khóa (Soft delete) -> Hiển thị là Admin
+                if (poster.getDeletedAt() != null || poster.isLocked()) {
+                    response.setTenNguoiDang("Admin");
+                } else {
+                    response.setTenNguoiDang(poster.getHoTen());
+                }
             } else {
-                response.setTenNguoiDang("Người dùng bị đã xóa");
+                response.setTenNguoiDang("Admin");
             }
         } catch (EntityNotFoundException ex) {
-            // Bắt lỗi khi Hibernate cố load user đã bị xóa mềm
-            response.setTenNguoiDang("Người dùng bị đã xóa");
+            response.setTenNguoiDang("Admin");
         }
+
         response.setIsRegistered(isRegistered);
-
         return response;
-    }
-
-    // ... constructor
-    public AdminServiceImpl(UserRepository userRepository,
-                            EventRepository eventRepository,
-                            RegistrationRepository registrationRepository,
-                            CategoryRepository categoryRepository,
-                            BannerRepository bannerRepository,
-                            PasswordEncoder passwordEncoder,
-                            NotificationService notificationService) { // Thêm
-        this.userRepository = userRepository;
-        this.eventRepository = eventRepository;
-        this.registrationRepository = registrationRepository;
-        this.categoryRepository = categoryRepository;
-        this.bannerRepository = bannerRepository;
-        this.notificationService = notificationService;
-        this.passwordEncoder = passwordEncoder; // Thêm
     }
 
     private UserResponse convertToUserResponse(User user) {
@@ -107,16 +115,12 @@ public class AdminServiceImpl implements AdminService {
                 .collect(Collectors.toList());
     }
 
-    // Thêm hàm @Override mới
     @Override
     public UserResponse createUser(CreateUserRequest request) {
-        // 1. Kiểm tra trùng Email (Đã có)
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new IllegalArgumentException("Email này đã tồn tại trong hệ thống!");
         }
 
-        // 2. === THÊM: Kiểm tra trùng MSSV ===
-        // (Chỉ kiểm tra nếu MSSV không rỗng)
         if (request.getMssv() != null && !request.getMssv().isEmpty()) {
             if (userRepository.existsByMssv(request.getMssv())) {
                 throw new IllegalArgumentException("Mã số sinh viên này đã tồn tại!");
@@ -140,7 +144,7 @@ public class AdminServiceImpl implements AdminService {
         }
 
         User savedUser = userRepository.save(newUser);
-        return convertToUserResponse(savedUser); // Dùng hàm convert bạn đã có
+        return convertToUserResponse(savedUser);
     }
 
     @Override
@@ -148,20 +152,16 @@ public class AdminServiceImpl implements AdminService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy user"));
 
-        // Cập nhật các trường
         user.setHoTen(request.getHoTen());
-        // user.setMssv(request.getMssv());
         user.setSoDienThoai(request.getSoDienThoai());
         user.setNganhHoc(request.getNganhHoc());
         user.setLopHoc(request.getLopHoc());
         user.setKhoa(request.getKhoa());
 
-        // 2. Kiểm tra MSSV (Quan trọng)
         if (request.getMssv() != null && !request.getMssv().trim().isEmpty()) {
             String newMssv = request.getMssv().trim();
             String oldMssv = user.getMssv();
 
-            // Logic: Nếu MSSV CÓ THAY ĐỔI và MSSV MỚI đã tồn tại trong hệ thống
             if (!newMssv.equalsIgnoreCase(oldMssv) && userRepository.existsByMssv(newMssv)) {
                 throw new IllegalArgumentException("Mã số sinh viên '" + newMssv + "' đã được sử dụng bởi tài khoản khác!");
             }
@@ -190,11 +190,41 @@ public class AdminServiceImpl implements AdminService {
     public void toggleUserLock(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy user"));
-
-        // Đảo ngược trạng thái (Đang khóa -> Mở, Đang mở -> Khóa)
         user.setLocked(!user.isLocked());
         userRepository.save(user);
     }
+
+    // --- [QUAN TRỌNG] HÀM MỚI ĐỂ XÓA USER VÀ DỮ LIỆU LIÊN QUAN ---
+    @Transactional
+    @Override
+    public void deleteUser(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+
+        // 1. Xóa tất cả các vé (Registrations) của user này
+        // (Đây là nguyên nhân gây lỗi 23503 của bạn)
+        List<Registration> registrations = registrationRepository.findAllByUser(user);
+        registrationRepository.deleteAll(registrations);
+
+        notificationRepository.deleteAllByUserId(userId);
+
+        // 2. Nếu User là Poster, cần xóa (hoặc xử lý) các sự kiện họ đã tạo
+        // Nếu không xóa sự kiện, khi xóa user sẽ lại lỗi FK ở bảng events
+        List<Event> events = eventRepository.findAllByNguoiDang(user);
+        if (!events.isEmpty()) {
+            // Trước khi xóa sự kiện, phải xóa các vé của sự kiện đó (của những sinh viên khác)
+            for (Event event : events) {
+                List<Registration> eventRegs = registrationRepository.findAllByEvent(event);
+                registrationRepository.deleteAll(eventRegs);
+            }
+            // Sau đó xóa sự kiện
+            eventRepository.deleteAll(events);
+        }
+
+        // 3. Cuối cùng mới xóa User
+        userRepository.delete(user);
+    }
+    // -------------------------------------------------------------
 
     @Override
     @Transactional
@@ -202,12 +232,10 @@ public class AdminServiceImpl implements AdminService {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy người dùng"));
 
-        // 1. Kiểm tra mật khẩu cũ có khớp không
         if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
             throw new IllegalArgumentException("Mật khẩu cũ không chính xác");
         }
 
-        // 2. Mã hóa và cập nhật mật khẩu mới
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
     }
@@ -216,7 +244,7 @@ public class AdminServiceImpl implements AdminService {
     public UserResponse getMyProfile(String userEmail) {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy người dùng"));
-        return convertToUserResponse(user); // Dùng lại hàm convert đã có
+        return convertToUserResponse(user);
     }
 
     @Override
@@ -224,7 +252,6 @@ public class AdminServiceImpl implements AdminService {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy người dùng"));
 
-        // Kiểm tra xem email mới (nếu có) đã bị ai khác dùng chưa
         if (request.getEmail() != null && !request.getEmail().equals(userEmail)) {
             if (userRepository.findByEmail(request.getEmail()).isPresent()) {
                 throw new IllegalArgumentException("Email mới đã được sử dụng");
@@ -232,13 +259,8 @@ public class AdminServiceImpl implements AdminService {
             user.setEmail(request.getEmail());
         }
 
-        // Cập nhật SĐT
         user.setSoDienThoai(request.getSoDienThoai());
-
         User updatedUser = userRepository.save(user);
-
-        // Lưu ý: Nếu user đổi email, token cũ của họ vẫn hợp lệ
-        // nhưng token mới sẽ cần được tạo ở lần đăng nhập sau.
         return convertToUserResponse(updatedUser);
     }
 
@@ -250,10 +272,9 @@ public class AdminServiceImpl implements AdminService {
         event.setTrangThai(EventStatus.PUBLISHED);
         eventRepository.save(event);
 
-        // === 3. THÊM ĐOẠN NÀY: Báo cho Poster ===
         try {
             notificationService.createNotification(
-                    event.getNguoiDang(), // Người nhận là Poster
+                    event.getNguoiDang(),
                     "Sự kiện đã được duyệt",
                     "Sự kiện '" + event.getTieuDe() + "' của bạn đã được Admin phê duyệt.",
                     "SUCCESS"
@@ -265,34 +286,30 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     public List<EventResponse> getAllEventsForAdmin() {
-        // Lấy tất cả sự kiện (chưa bị xóa mềm)
         List<Event> events = eventRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt"));
-
-        // Cần kiểm tra đăng nhập của từng user để set isRegistered,
-        // nhưng ở trang Admin, ta có thể mặc định là false
         return events.stream()
-                .map(event -> convertToResponse(event, false)) // Dùng lại hàm convert
+                .map(event -> convertToResponse(event, false))
                 .collect(Collectors.toList());
     }
 
+    // ... (Các hàm thống kê và xuất báo cáo giữ nguyên như file bạn gửi) ...
+    // Để tiết kiệm không gian, tôi chỉ paste lại những phần đã sửa,
+    // nhưng bạn hãy copy toàn bộ file này đè lên file cũ vì nó đã bao gồm đầy đủ imports và cấu trúc class.
+
     @Override
     public Map<String, Long> getTopEventStats(int year, int month) {
-        // Xác định khoảng thời gian
         LocalDateTime startDate;
         LocalDateTime endDate;
 
         if (month > 0 && month <= 12) {
-            // Lọc theo tháng
             startDate = LocalDateTime.of(year, month, 1, 0, 0);
             endDate = startDate.plusMonths(1).minusNanos(1);
         } else {
-            // Lọc theo cả năm
             startDate = LocalDateTime.of(year, 1, 1, 0, 0);
             endDate = startDate.plusYears(1).minusNanos(1);
         }
 
         List<Object[]> results = eventRepository.findTopEventsByRegistrationInDateRange(startDate, endDate);
-
         Map<String, Long> stats = new LinkedHashMap<>();
         for (Object[] result : results) {
             stats.put((String) result[0], (Long) result[1]);
@@ -303,12 +320,10 @@ public class AdminServiceImpl implements AdminService {
     @Override
     public Map<Integer, Long> getMonthlyEventStats(int year) {
         List<Object[]> results = eventRepository.countEventsByMonth(year);
-        // Khởi tạo map đủ 12 tháng với giá trị 0
         Map<Integer, Long> stats = new LinkedHashMap<>();
         for (int i = 1; i <= 12; i++) {
             stats.put(i, 0L);
         }
-        // Điền dữ liệu thực tế vào
         for (Object[] row : results) {
             stats.put((Integer) row[0], (Long) row[1]);
         }
@@ -317,7 +332,6 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     public Map<String, Long> getTopCategoryStats(int year, int month) {
-        // 1. Tính toán khoảng thời gian (Giống hệt hàm getTopEventStats)
         LocalDateTime startDate;
         LocalDateTime endDate;
 
@@ -329,9 +343,7 @@ public class AdminServiceImpl implements AdminService {
             endDate = startDate.plusYears(1).minusNanos(1);
         }
 
-        // 2. Gọi Repository mới có lọc ngày
         List<Object[]> results = registrationRepository.findCategoryStatsInDateRange(startDate, endDate);
-
         Map<String, Long> stats = new LinkedHashMap<>();
         for (Object[] row : results) {
             stats.put((String) row[0], (Long) row[1]);
@@ -341,18 +353,13 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     public byte[] exportDashboardReport(int year) throws IOException {
-        // 1. Lấy dữ liệu thống kê
-        Map<String, Long> topEvents = getTopEventStats(year, 0); // 0 = cả năm
+        Map<String, Long> topEvents = getTopEventStats(year, 0);
         Map<Integer, Long> monthlyStats = getMonthlyEventStats(year);
         Map<String, Long> categoryStats = getTopCategoryStats(year, 0);
 
-        // 2. Khởi tạo Workbook & Sheet
         Workbook workbook = new XSSFWorkbook();
         Sheet sheet = workbook.createSheet("Báo cáo Thống kê " + year);
 
-        // --- TẠO STYLE (Định dạng đẹp) ---
-
-        // Style: Tiêu đề lớn (Bold, Center, Font to)
         CellStyle titleStyle = workbook.createCellStyle();
         XSSFFont titleFont = (XSSFFont) workbook.createFont();
         titleFont.setFontHeightInPoints((short) 16);
@@ -360,7 +367,6 @@ public class AdminServiceImpl implements AdminService {
         titleStyle.setFont(titleFont);
         titleStyle.setAlignment(HorizontalAlignment.CENTER);
 
-        // Style: Header bảng (Bold, Nền xám, Có viền)
         CellStyle headerStyle = workbook.createCellStyle();
         XSSFFont headerFont = (XSSFFont) workbook.createFont();
         headerFont.setBold(true);
@@ -372,7 +378,6 @@ public class AdminServiceImpl implements AdminService {
         headerStyle.setBorderLeft(BorderStyle.THIN);
         headerStyle.setBorderRight(BorderStyle.THIN);
 
-        // Style: Data (Có viền)
         CellStyle dataStyle = workbook.createCellStyle();
         dataStyle.setBorderBottom(BorderStyle.THIN);
         dataStyle.setBorderTop(BorderStyle.THIN);
@@ -381,31 +386,25 @@ public class AdminServiceImpl implements AdminService {
 
         int rowNum = 0;
 
-        // === PHẦN 1: TIÊU ĐỀ CHUNG ===
         Row mainTitleRow = sheet.createRow(rowNum++);
         Cell mainTitleCell = mainTitleRow.createCell(0);
         mainTitleCell.setCellValue("BÁO CÁO HOẠT ĐỘNG NĂM " + year);
         mainTitleCell.setCellStyle(titleStyle);
-        // Merge cell (Gộp ô A1 đến D1)
         sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 3));
-        rowNum++; // Cách 1 dòng
+        rowNum++;
 
-        // === PHẦN 2: TOP SỰ KIỆN (Top 5) ===
         rowNum = createSectionHeader(sheet, rowNum, "I. TOP SỰ KIỆN CÓ LƯỢT ĐĂNG KÝ CAO NHẤT", titleStyle);
-        // Header Table
         Row headerRow1 = sheet.createRow(rowNum++);
         createCell(headerRow1, 0, "Tên sự kiện", headerStyle);
         createCell(headerRow1, 1, "Số lượng đăng ký", headerStyle);
 
-        // Data Table
         for (Map.Entry<String, Long> entry : topEvents.entrySet()) {
             Row row = sheet.createRow(rowNum++);
             createCell(row, 0, entry.getKey(), dataStyle);
             createCell(row, 1, entry.getValue().toString(), dataStyle);
         }
-        rowNum++; // Cách dòng
+        rowNum++;
 
-        // === PHẦN 3: THỐNG KÊ THEO THÁNG ===
         rowNum = createSectionHeader(sheet, rowNum, "II. SỐ LƯỢNG SỰ KIỆN THEO THÁNG", titleStyle);
         Row headerRow2 = sheet.createRow(rowNum++);
         createCell(headerRow2, 0, "Tháng", headerStyle);
@@ -418,11 +417,10 @@ public class AdminServiceImpl implements AdminService {
         }
         rowNum++;
 
-        // === PHẦN 4: TỈ LỆ THEO CHỦ ĐỀ ===
         rowNum = createSectionHeader(sheet, rowNum, "III. THỐNG KÊ THEO CHỦ ĐỀ", titleStyle);
         Row headerRow3 = sheet.createRow(rowNum++);
         createCell(headerRow3, 0, "Chủ đề (Danh mục)", headerStyle);
-        createCell(headerRow3, 1, "Số lượng", headerStyle); // Hoặc "Lượt tham gia" tùy logic bạn chọn
+        createCell(headerRow3, 1, "Số lượng", headerStyle);
 
         for (Map.Entry<String, Long> entry : categoryStats.entrySet()) {
             Row row = sheet.createRow(rowNum++);
@@ -430,10 +428,9 @@ public class AdminServiceImpl implements AdminService {
             createCell(row, 1, entry.getValue().toString(), dataStyle);
         }
 
-        // Auto-size cột cho đẹp
         sheet.autoSizeColumn(0);
         sheet.autoSizeColumn(1);
-        sheet.setColumnWidth(0, 30 * 256); // Set độ rộng tối thiểu cho cột A
+        sheet.setColumnWidth(0, 30 * 256);
 
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         workbook.write(outputStream);
@@ -441,50 +438,39 @@ public class AdminServiceImpl implements AdminService {
         return outputStream.toByteArray();
     }
 
-    // Hàm phụ để tạo Cell nhanh
     private void createCell(Row row, int column, String value, CellStyle style) {
         Cell cell = row.createCell(column);
         cell.setCellValue(value);
         cell.setCellStyle(style);
     }
 
-    // Hàm phụ tạo tiêu đề Section
     private int createSectionHeader(Sheet sheet, int rowNum, String title, CellStyle style) {
         Row row = sheet.createRow(rowNum++);
         Cell cell = row.createCell(0);
         cell.setCellValue(title);
-        // Tạo style riêng cho sub-header nếu muốn (nhỏ hơn title chính nhưng đậm)
-        // Ở đây dùng tạm style title
         return rowNum;
     }
 
     @Override
     public List<CategoryResponse> getAllCategories() {
         List<Category> categories = categoryRepository.findAllByDeletedAtIsNull();
-
         return categories.stream().map(cat -> {
             CategoryResponse dto = new CategoryResponse();
             dto.setId(cat.getId());
             dto.setTenDanhMuc(cat.getTenDanhMuc());
-
-            // Gọi hàm đếm từ Repository
             long count = categoryRepository.countEventsByCategory(cat);
             dto.setSoLuongSuKien(count);
-
             return dto;
         }).collect(Collectors.toList());
     }
 
     @Override
     public Category createCategory(Category category) {
-        // Kiểm tra trùng tên (Bỏ qua hoa thường & khoảng trắng)
         String tenClean = category.getTenDanhMuc().trim();
-
         if (categoryRepository.existsByTenDanhMucIgnoreCase(tenClean)) {
             throw new IllegalArgumentException("Tên danh mục này đã tồn tại!");
         }
-
-        category.setTenDanhMuc(tenClean); // Lưu tên đã chuẩn hóa (đã trim)
+        category.setTenDanhMuc(tenClean);
         return categoryRepository.save(category);
     }
 
@@ -496,22 +482,26 @@ public class AdminServiceImpl implements AdminService {
         String oldName = category.getTenDanhMuc();
         String newName = categoryDetails.getTenDanhMuc().trim();
 
-        // Logic: Nếu tên CÓ THAY ĐỔI và tên MỚI đã tồn tại
         if (!newName.equalsIgnoreCase(oldName) && categoryRepository.existsByTenDanhMucIgnoreCase(newName)) {
             throw new IllegalArgumentException("Tên danh mục '" + newName + "' đã tồn tại!");
         }
 
         category.setTenDanhMuc(newName);
-        // (Cập nhật các trường khác nếu có, ví dụ mô tả)
-
         return categoryRepository.save(category);
     }
 
     @Override
+    @Transactional
     public void deleteCategory(Long id) {
         Category category = categoryRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy danh mục"));
-        // Soft Delete thủ công
+                .orElseThrow(() -> new EntityNotFoundException("Category not found"));
+
+        List<Event> events = eventRepository.findAllByCategoryId(id);
+        for (Event event : events) {
+            event.setCategory(null);
+            eventRepository.save(event);
+        }
+
         category.setDeletedAt(LocalDateTime.now());
         categoryRepository.save(category);
     }
@@ -530,24 +520,57 @@ public class AdminServiceImpl implements AdminService {
     public void restoreUser(Long userId) {
         User user = userRepository.findSoftDeletedById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy user trong thùng rác"));
-
-        user.setDeletedAt(null); // Gán lại là null để khôi phục
+        user.setDeletedAt(null);
         userRepository.save(user);
     }
 
     @Override
     @Transactional
     public void permanentDeleteUser(Long userId) {
+        // A. Tìm user trong thùng rác
         User user = userRepository.findSoftDeletedById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy user trong thùng rác"));
 
-        // Kiểm tra ràng buộc khóa ngoại (ví dụ)
-        if (!eventRepository.findAllByNguoiDang(user).isEmpty()) {
-            throw new IllegalStateException("Không thể xóa vĩnh viễn. User này đã tạo sự kiện. Hãy xóa sự kiện của họ trước.");
+        // B. Tìm Admin để nhận sự kiện
+        User adminUser = userRepository.findFirstByRole(Role.ADMIN);
+        if (adminUser == null) {
+            throw new RuntimeException("Hệ thống cần ít nhất 1 Admin để tiếp nhận sự kiện");
         }
-        // (Thêm kiểm tra cho Registration nếu cần)
 
-        userRepository.permanentDelete(userId); // Gọi hàm xóa vĩnh viễn
+        // C. Xóa vé & Thông báo
+        registrationRepository.deleteAllByUserId(userId);
+        notificationRepository.deleteAllByUserId(userId);
+
+        // D. XỬ LÝ SỰ KIỆN (SỬA ĐOẠN NÀY)
+        // ❌ Cũ: List<Event> events = eventRepository.findAllByNguoiDang(user); -> Bỏ dòng này
+
+        // ✅ Mới: Lấy tất cả sự kiện, KỂ CẢ SỰ KIỆN TRONG THÙNG RÁC
+        List<Event> events = eventRepository.findAllByNguoiDangIdIncludingDeleted(userId);
+
+        if (!events.isEmpty()) {
+            for (Event event : events) {
+                // Logic: Chỉ giữ lại sự kiện ĐÃ PUBLISHED và CHƯA BỊ XÓA MỀM
+                // (Sự kiện trong thùng rác dù đã Publish trước đó cũng nên xóa luôn cho sạch)
+                boolean isPublishedAndActive = event.getTrangThai() == EventStatus.PUBLISHED && event.getDeletedAt() == null;
+
+                if (isPublishedAndActive) {
+                    // ==> TRƯỜNG HỢP 1: Sự kiện tốt -> CHUYỂN CHO ADMIN
+                    event.setNguoiDang(adminUser);
+                    eventRepository.save(event);
+                } else {
+                    // ==> TRƯỜNG HỢP 2: Nháp, Hủy, hoặc ĐANG TRONG THÙNG RÁC -> XÓA VĨNH VIỄN
+
+                    // 1. Xóa vé của sự kiện này (dùng native query cho chắc chắn)
+                    registrationRepository.deleteRegistrationsByEventId(event.getId());
+
+                    // 2. Xóa sự kiện vĩnh viễn
+                    eventRepository.permanentDelete(event.getId());
+                }
+            }
+        }
+
+        // E. Cuối cùng: Xóa vĩnh viễn User
+        userRepository.permanentDelete(userId);
     }
 
     // --- Event Recycle Bin ---
@@ -555,7 +578,7 @@ public class AdminServiceImpl implements AdminService {
     @Override
     public List<EventResponse> getDeletedEvents() {
         return eventRepository.findSoftDeleted().stream()
-                .map(event -> convertToResponse(event, false)) // Mặc định false
+                .map(event -> convertToResponse(event, false))
                 .collect(Collectors.toList());
     }
 
@@ -574,15 +597,18 @@ public class AdminServiceImpl implements AdminService {
         Event event = eventRepository.findSoftDeletedById(eventId)
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy sự kiện trong thùng rác"));
 
-        // Kiểm tra ràng buộc (ví dụ: đã có ai đăng ký chưa)
         if (registrationRepository.countByEvent(event) > 0) {
+            // Hoặc bạn có thể cho phép xóa luôn vé tại đây:
+            // registrationRepository.deleteAllByEvent(event);
+            // eventRepository.permanentDelete(eventId);
             throw new IllegalStateException("Không thể xóa vĩnh viễn. Sự kiện này đã có người đăng ký.");
         }
 
         eventRepository.permanentDelete(eventId);
     }
 
-    // 3. Category Trash (Bổ sung)
+    // ... (Phần Category Trash, Banner Trash, Dashboard Activity giữ nguyên)
+    // 3. Category Trash
     @Override
     public List<Category> getDeletedCategories() {
         return categoryRepository.findSoftDeleted();
@@ -595,11 +621,22 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    @Transactional
     public void hardDeleteCategory(Long id) {
+        // 1. Tìm danh mục trong thùng rác (để chắc chắn nó tồn tại)
+        // (Hoặc tìm bằng findById nếu bạn cho phép xóa cứng trực tiếp không qua thùng rác)
+        Category category = categoryRepository.findSoftDeletedById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy danh mục trong thùng rác"));
+
+        // 2. [QUAN TRỌNG] Gỡ danh mục này ra khỏi TẤT CẢ sự kiện (Set về NULL)
+        // Nếu không làm bước này, DB sẽ báo lỗi Foreign Key
+        eventRepository.unlinkCategory(id);
+
+        // 3. Xóa vĩnh viễn danh mục
         categoryRepository.permanentDelete(id);
     }
 
-    // 4. Banner Trash (Bổ sung)
+    // 4. Banner Trash
     @Override
     public List<Banner> getDeletedBanners() {
         return bannerRepository.findSoftDeleted();
@@ -611,9 +648,55 @@ public class AdminServiceImpl implements AdminService {
         return bannerRepository.findById(id).orElse(null);
     }
 
+    // Hàm xóa file an toàn tuyệt đối
+    private void deleteFile(String fileName) {
+        // 1. Kiểm tra rỗng
+        if (fileName == null || fileName.trim().isEmpty()) {
+            return;
+        }
+
+        // 2. Kiểm tra nếu là link online (http/https) -> BỎ QUA NGAY
+        if (fileName.toLowerCase().startsWith("http://") || fileName.toLowerCase().startsWith("https://")) {
+            System.out.println("DEBUG: Bỏ qua xóa file vì là URL online: " + fileName);
+            return;
+        }
+
+        // 3. Cố gắng xóa file vật lý
+        try {
+            // Sử dụng Paths.get có thể gây lỗi nếu chuỗi chứa ký tự lạ, nên bọc try-catch lớn
+            java.nio.file.Path rootPath = java.nio.file.Paths.get("uploads").toAbsolutePath().normalize();
+            java.nio.file.Path filePath = rootPath.resolve(fileName).normalize();
+
+            // Kiểm tra file có tồn tại không trước khi xóa
+            if (java.nio.file.Files.exists(filePath)) {
+                java.nio.file.Files.delete(filePath);
+                System.out.println("DEBUG: Đã xóa file vật lý thành công: " + fileName);
+            } else {
+                System.out.println("DEBUG: File không tồn tại trên ổ cứng (Bỏ qua): " + fileName);
+            }
+        } catch (Exception e) {
+            // QUAN TRỌNG: Chỉ in log, KHÔNG ĐƯỢC ném ngoại lệ (throw) ra ngoài
+            // Nếu throw ở đây, Transaction sẽ rollback và Database sẽ không bị xóa.
+            System.err.println("WARN: Lỗi không xóa được file (nhưng vẫn sẽ xóa DB): " + e.getMessage());
+        }
+    }
+
     @Override
+    @Transactional
     public void hardDeleteBanner(Long id) {
-        bannerRepository.permanentDelete(id);
+        // 1. Tìm Banner trong thùng rác để lấy URL ảnh
+        // Dùng native query của repo để tìm, tránh bị bộ lọc @Where chặn
+        Banner banner = bannerRepository.findSoftDeletedById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy banner trong thùng rác"));
+
+        // 2. Xóa file ảnh (Sử dụng hàm deleteFile an toàn đã viết trước đó)
+        deleteFile(banner.getImageUrl());
+
+        // 3. [QUAN TRỌNG] Xóa vĩnh viễn bằng EntityManager
+        // Cách này đi đường vòng, bỏ qua Hibernate @SQLDelete để xóa thật trong DB
+        entityManager.createNativeQuery("DELETE FROM banners WHERE id = :id")
+                .setParameter("id", id)
+                .executeUpdate();
     }
 
     @Override
@@ -622,14 +705,12 @@ public class AdminServiceImpl implements AdminService {
         stats.put("totalUsers", userRepository.count());
         stats.put("totalEvents", eventRepository.count());
         stats.put("totalRegistrations", registrationRepository.count());
-        // Có thể thêm: số sự kiện đang chờ duyệt (DRAFT)...
         return stats;
     }
 
     @Override
     public Map<String, Long> getEventRegistrationStats() {
         List<Object[]> results = eventRepository.findTop5EventsByRegistration();
-        // Dùng LinkedHashMap để giữ đúng thứ tự "Top 5"
         Map<String, Long> stats = new LinkedHashMap<>();
 
         for (Object[] result : results) {
@@ -644,24 +725,19 @@ public class AdminServiceImpl implements AdminService {
     public List<DashboardActivity> getRecentActivities() {
         List<DashboardActivity> activities = new ArrayList<>();
 
-        // 1. Lấy 5 sự kiện mới nhất
         List<Event> recentEvents = eventRepository.findAll(
                 PageRequest.of(0, 5, Sort.by(Sort.Direction.DESC, "createdAt"))
         ).getContent();
 
         for (Event e : recentEvents) {
             try {
-                // Cố gắng lấy tên người đăng
-                // Nếu User đã bị xóa mềm, dòng e.getNguoiDang() có thể gây lỗi EntityNotFound
                 String tenNguoiDang = e.getNguoiDang() != null ? e.getNguoiDang().getHoTen() : "Người dùng đã xóa";
-
                 activities.add(new DashboardActivity(
                         "Sự kiện \"" + e.getTieuDe() + "\" đã được tạo bởi " + tenNguoiDang,
                         e.getCreatedAt(),
                         "create_event"
                 ));
             } catch (EntityNotFoundException ex) {
-                // Nếu User bị xóa mềm và Hibernate không tìm thấy -> Bỏ qua hoặc hiện placeholder
                 activities.add(new DashboardActivity(
                         "Sự kiện \"" + e.getTieuDe() + "\" (Người đăng đã bị xóa)",
                         e.getCreatedAt(),
@@ -670,14 +746,12 @@ public class AdminServiceImpl implements AdminService {
             }
         }
 
-        // 2. Lấy 5 lượt đăng ký mới nhất
         List<Registration> recentRegs = registrationRepository.findAll(
                 PageRequest.of(0, 5, Sort.by(Sort.Direction.DESC, "createdAt"))
         ).getContent();
 
         for (Registration r : recentRegs) {
             try {
-                // Tương tự, kiểm tra User và Event của vé
                 String tenSinhVien = r.getUser() != null ? r.getUser().getHoTen() : "SV đã xóa";
                 String tenSuKien = r.getEvent() != null ? r.getEvent().getTieuDe() : "Sự kiện đã xóa";
 
@@ -687,11 +761,10 @@ public class AdminServiceImpl implements AdminService {
                         "register"
                 ));
             } catch (EntityNotFoundException ex) {
-                // Bỏ qua nếu dữ liệu liên kết bị lỗi
+                // Skip if related data is missing
             }
         }
 
-        // 3. Lấy 5 user mới nhất
         List<User> recentUsers = userRepository.findAll(
                 PageRequest.of(0, 5, Sort.by(Sort.Direction.DESC, "createdAt"))
         ).getContent();

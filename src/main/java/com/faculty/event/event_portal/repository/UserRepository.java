@@ -15,6 +15,8 @@ import java.util.Optional;
 public interface UserRepository extends JpaRepository<User, Long> {
     // JpaRepository<TênEntity, KiểuDữLiệuCủaKhóaChính>
 
+    User findFirstByRole(Role role);
+
     List<User> findAllByRole(Role role);
 
     // Spring Data JPA sẽ tự động tạo câu lệnh SQL

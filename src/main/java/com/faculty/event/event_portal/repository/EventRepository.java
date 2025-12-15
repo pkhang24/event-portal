@@ -11,6 +11,7 @@ import org.springframework.data.jpa.domain.Specification; // Import mới
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor; // Import mới
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -26,6 +27,11 @@ public interface EventRepository extends JpaRepository<Event, Long>, JpaSpecific
     List<Event> findAllByTrangThaiNot(EventStatus status, Sort sort);
 
     List<Event> findAllByNguoiDang(User nguoiDang);
+
+    @Query(value = "SELECT * FROM events WHERE nguoi_dang_id = :userId", nativeQuery = true)
+    List<Event> findAllByNguoiDangIdIncludingDeleted(@Param("userId") Long userId);
+
+    List<Event> findAllByCategoryId(Long categoryId);
 
     // Lấy Top 5 sự kiện có nhiều lượt đăng ký nhất
     @Query("SELECT e.tieuDe, COUNT(r.id) as luotDangKy " +
@@ -88,4 +94,10 @@ public interface EventRepository extends JpaRepository<Event, Long>, JpaSpecific
     @Modifying
     @Query(value = "DELETE FROM events WHERE id = :id", nativeQuery = true)
     void permanentDelete(@Param("id") Long id);
+
+    // Gỡ liên kết đến danh mục của sự kiện
+    @Modifying
+    @Transactional
+    @Query(value = "UPDATE events SET category_id = NULL WHERE category_id = :categoryId", nativeQuery = true)
+    void unlinkCategory(@Param("categoryId") Long categoryId);
 }
