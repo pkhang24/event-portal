@@ -2,11 +2,15 @@ package com.faculty.event.event_portal.controller;
 
 import com.faculty.event.event_portal.entity.Banner;
 import com.faculty.event.event_portal.service.BannerService;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile; // Import quan trọng
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 
 @RestController
@@ -29,6 +33,26 @@ public class BannerController {
     @GetMapping
     public ResponseEntity<List<Banner>> getAllBanners() {
         return ResponseEntity.ok(bannerService.getAllBanners());
+    }
+
+    // API MỚI: Đọc ảnh banner
+    @GetMapping("/images/{fileName:.+}")
+    public ResponseEntity<Resource> getBannerImage(@PathVariable String fileName) {
+        try {
+            // Đường dẫn tới thư mục uploads (đảm bảo giống trong Service)
+            Path filePath = Paths.get("uploads").toAbsolutePath().normalize().resolve(fileName).normalize();
+            Resource resource = new UrlResource(filePath.toUri());
+
+            if (resource.exists()) {
+                return ResponseEntity.ok()
+                        .contentType(MediaType.IMAGE_PNG) // Hoặc MediaType.IMAGE_JPEG tùy ảnh
+                        .body(resource);
+            } else {
+                return ResponseEntity.notFound().build();
+            }
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
     }
 
     // Tạo mới (Giống hệt Event: nhận file 'image')

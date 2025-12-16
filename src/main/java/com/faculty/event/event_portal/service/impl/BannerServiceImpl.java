@@ -3,8 +3,11 @@ package com.faculty.event.event_portal.service.impl;
 import com.faculty.event.event_portal.entity.Banner;
 import com.faculty.event.event_portal.repository.BannerRepository;
 import com.faculty.event.event_portal.service.BannerService;
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -21,6 +24,9 @@ public class BannerServiceImpl implements BannerService {
 
     private final BannerRepository bannerRepository;
     private final Path fileStorageLocation = Paths.get("uploads").toAbsolutePath().normalize();
+
+    @PersistenceContext
+    private EntityManager entityManager; // Tiêm EntityManager để xóa cứng
 
     public BannerServiceImpl(BannerRepository bannerRepository) {
         this.bannerRepository = bannerRepository;
@@ -46,29 +52,30 @@ public class BannerServiceImpl implements BannerService {
         }
     }
 
-    // Logic xóa file khỏi ổ cứng
+    // Logic xóa file AN TOÀN TUYỆT ĐỐI
     private void deleteFile(String fileName) {
-        if (fileName == null || fileName.isEmpty()) return;
-        // Nếu là link ảnh online (http...) thì không xóa
-        if (fileName.startsWith("http")) return;
+        if (fileName == null || fileName.trim().isEmpty()) return;
+        if (fileName.toLowerCase().startsWith("http")) return; // Bỏ qua link online
 
         try {
             Path filePath = this.fileStorageLocation.resolve(fileName).normalize();
             Files.deleteIfExists(filePath);
-            System.out.println("Đã xóa file rác: " + fileName);
-        } catch (IOException ex) {
-            System.err.println("Lỗi xóa file: " + fileName);
+            System.out.println("DEBUG: Đã xóa file: " + fileName);
+        } catch (Exception ex) {
+            // Chỉ in log, KHÔNG throw exception để tránh rollback DB
+            System.err.println("WARN: Không xóa được file (vẫn tiếp tục xóa DB): " + ex.getMessage());
         }
     }
 
     @Override
     public List<Banner> getAllBanners() {
-        return bannerRepository.findAll();
+        // Chỉ lấy banner chưa xóa
+        return bannerRepository.findAllNotDeleted();
     }
 
     @Override
     public List<Banner> getActiveBanners() {
-        return bannerRepository.findAllByIsActiveTrue();
+        return bannerRepository.findAllActive();
     }
 
     @Override
@@ -88,11 +95,8 @@ public class BannerServiceImpl implements BannerService {
                 .orElseThrow(() -> new EntityNotFoundException("Banner not found"));
 
         if (image != null && !image.isEmpty()) {
-            // === SỬA QUAN TRỌNG: Xóa ảnh cũ trước khi lưu ảnh mới ===
-            deleteFile(banner.getImageUrl());
-
-            // Lưu ảnh mới
-            banner.setImageUrl(storeFile(image));
+            deleteFile(banner.getImageUrl()); // Xóa ảnh cũ
+            banner.setImageUrl(storeFile(image)); // Lưu ảnh mới
         }
         if (active != null) banner.setActive(active);
 
@@ -104,7 +108,7 @@ public class BannerServiceImpl implements BannerService {
         Banner banner = bannerRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Banner not found"));
 
-        // Soft Delete: Gán thời gian xóa và ẩn đi
+        // Xóa mềm thủ công
         banner.setDeletedAt(LocalDateTime.now());
         banner.setActive(false);
         bannerRepository.save(banner);
@@ -124,28 +128,28 @@ public class BannerServiceImpl implements BannerService {
 
     @Override
     public void restoreBanner(Long id) {
-        // LƯU Ý: Vì Entity dùng @Where(clause="deleted_at IS NULL"), findById thường sẽ KHÔNG tìm thấy file đã xóa.
-        // Bạn cần dùng hàm Query Native trong Repository để tìm.
-        // Ví dụ: bannerRepository.findDeletedById(id)
-        // Tạm thời tôi dùng findById, nhưng nếu lỗi "Not Found", bạn cần thêm hàm query native vào Repository.
-
-        Banner banner = bannerRepository.findDeletedById(id) // <--- Cần kiểm tra kỹ chỗ này
-                .orElseThrow(() -> new EntityNotFoundException("Banner not found (in trash)"));
+        Banner banner = bannerRepository.findSoftDeletedById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Banner not found in trash"));
 
         banner.setDeletedAt(null);
-        banner.setActive(false);
+        banner.setActive(false); // Khôi phục nhưng tắt active cho an toàn
         bannerRepository.save(banner);
     }
 
     @Override
+    @Transactional
     public void hardDeleteBanner(Long id) {
-        Banner banner = bannerRepository.findDeletedById(id) // <--- Cần kiểm tra kỹ chỗ này
-                .orElseThrow(() -> new EntityNotFoundException("Banner not found (in trash)"));
+        // 1. Tìm banner trong thùng rác
+        Banner banner = bannerRepository.findSoftDeletedById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Banner not found in trash"));
 
-        // 1. Xóa ảnh trong ổ cứng để dọn rác
+        // 2. Xóa file ảnh (An toàn, không crash)
         deleteFile(banner.getImageUrl());
 
-        // 2. Xóa vĩnh viễn trong DB
-        bannerRepository.delete(banner);
+        // 3. Xóa vĩnh viễn trong DB bằng EntityManager (Native SQL)
+        // Cách này bỏ qua mọi quy tắc của Hibernate
+        entityManager.createNativeQuery("DELETE FROM banners WHERE id = :id")
+                .setParameter("id", id)
+                .executeUpdate();
     }
 }

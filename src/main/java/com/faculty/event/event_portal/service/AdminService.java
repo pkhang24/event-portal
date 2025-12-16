@@ -1,7 +1,6 @@
 package com.faculty.event.event_portal.service;
 
 import com.faculty.event.event_portal.dto.*;
-import com.faculty.event.event_portal.entity.Banner;
 import com.faculty.event.event_portal.entity.Category;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,11 +35,6 @@ public interface AdminService {
     List<Category> getDeletedCategories();
     Category restoreCategory(Long id);
     void hardDeleteCategory(Long id);
-
-    // Banner
-    List<Banner> getDeletedBanners();
-    Banner restoreBanner(Long id);
-    void hardDeleteBanner(Long id);
 
     List<DashboardActivity> getRecentActivities();
 

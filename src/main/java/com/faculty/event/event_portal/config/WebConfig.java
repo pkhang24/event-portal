@@ -6,6 +6,7 @@ import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import java.nio.file.Path;
 import java.nio.file.Paths;
 
 @Configuration
@@ -30,10 +31,13 @@ public class WebConfig implements WebMvcConfigurer{
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // Cấu hình: Khi truy cập đường dẫn /uploads/** // -> Sẽ tìm file trong thư mục 'uploads' ở gốc project
-        String uploadPath = Paths.get("uploads").toAbsolutePath().toUri().toString();
+        // Lấy đường dẫn tuyệt đối tới thư mục uploads của dự án
+        Path uploadDir = Paths.get("./uploads");
+        String uploadPath = uploadDir.toFile().getAbsolutePath();
 
+        // Cấu hình: Khi gọi http://localhost:8080/uploads/ten-file.jpg
+        // -> Sẽ tìm trong thư mục uploads trên ổ cứng
         registry.addResourceHandler("/uploads/**")
-                .addResourceLocations("file:./uploads/");
+                .addResourceLocations("file:/" + uploadPath + "/");
     }
 }

@@ -607,7 +607,7 @@ public class AdminServiceImpl implements AdminService {
         eventRepository.permanentDelete(eventId);
     }
 
-    // ... (Phần Category Trash, Banner Trash, Dashboard Activity giữ nguyên)
+    // ... (Phần Category Trash, Dashboard Activity giữ nguyên)
     // 3. Category Trash
     @Override
     public List<Category> getDeletedCategories() {
@@ -634,69 +634,6 @@ public class AdminServiceImpl implements AdminService {
 
         // 3. Xóa vĩnh viễn danh mục
         categoryRepository.permanentDelete(id);
-    }
-
-    // 4. Banner Trash
-    @Override
-    public List<Banner> getDeletedBanners() {
-        return bannerRepository.findSoftDeleted();
-    }
-
-    @Override
-    public Banner restoreBanner(Long id) {
-        bannerRepository.restoreBanner(id);
-        return bannerRepository.findById(id).orElse(null);
-    }
-
-    // Hàm xóa file an toàn tuyệt đối
-    private void deleteFile(String fileName) {
-        // 1. Kiểm tra rỗng
-        if (fileName == null || fileName.trim().isEmpty()) {
-            return;
-        }
-
-        // 2. Kiểm tra nếu là link online (http/https) -> BỎ QUA NGAY
-        if (fileName.toLowerCase().startsWith("http://") || fileName.toLowerCase().startsWith("https://")) {
-            System.out.println("DEBUG: Bỏ qua xóa file vì là URL online: " + fileName);
-            return;
-        }
-
-        // 3. Cố gắng xóa file vật lý
-        try {
-            // Sử dụng Paths.get có thể gây lỗi nếu chuỗi chứa ký tự lạ, nên bọc try-catch lớn
-            java.nio.file.Path rootPath = java.nio.file.Paths.get("uploads").toAbsolutePath().normalize();
-            java.nio.file.Path filePath = rootPath.resolve(fileName).normalize();
-
-            // Kiểm tra file có tồn tại không trước khi xóa
-            if (java.nio.file.Files.exists(filePath)) {
-                java.nio.file.Files.delete(filePath);
-                System.out.println("DEBUG: Đã xóa file vật lý thành công: " + fileName);
-            } else {
-                System.out.println("DEBUG: File không tồn tại trên ổ cứng (Bỏ qua): " + fileName);
-            }
-        } catch (Exception e) {
-            // QUAN TRỌNG: Chỉ in log, KHÔNG ĐƯỢC ném ngoại lệ (throw) ra ngoài
-            // Nếu throw ở đây, Transaction sẽ rollback và Database sẽ không bị xóa.
-            System.err.println("WARN: Lỗi không xóa được file (nhưng vẫn sẽ xóa DB): " + e.getMessage());
-        }
-    }
-
-    @Override
-    @Transactional
-    public void hardDeleteBanner(Long id) {
-        // 1. Tìm Banner trong thùng rác để lấy URL ảnh
-        // Dùng native query của repo để tìm, tránh bị bộ lọc @Where chặn
-        Banner banner = bannerRepository.findSoftDeletedById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy banner trong thùng rác"));
-
-        // 2. Xóa file ảnh (Sử dụng hàm deleteFile an toàn đã viết trước đó)
-        deleteFile(banner.getImageUrl());
-
-        // 3. [QUAN TRỌNG] Xóa vĩnh viễn bằng EntityManager
-        // Cách này đi đường vòng, bỏ qua Hibernate @SQLDelete để xóa thật trong DB
-        entityManager.createNativeQuery("DELETE FROM banners WHERE id = :id")
-                .setParameter("id", id)
-                .executeUpdate();
     }
 
     @Override
