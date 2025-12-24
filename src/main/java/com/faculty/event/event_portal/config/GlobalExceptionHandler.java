@@ -12,24 +12,24 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.HashMap;
 import java.util.Map;
 
-@RestControllerAdvice // 1. Đánh dấu đây là nơi xử lý lỗi cho TOÀN BỘ hệ thống
+@RestControllerAdvice
 public class GlobalExceptionHandler {
 
     /**
-     * Xử lý lỗi Logic (Ví dụ: Trùng Email, Trùng MSSV, Mật khẩu sai...)
+     * Xử lý lỗi Logic (Trùng Email, Trùng MSSV, Mật khẩu sai...)
      * Trả về mã 400 Bad Request
      */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException e) {
         Map<String, String> response = new HashMap<>();
         response.put("status", "error");
-        response.put("message", e.getMessage()); // Lấy nội dung bạn đã throw
+        response.put("message", e.getMessage());
 
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
 
     /**
-     * Xử lý lỗi Không tìm thấy dữ liệu (Ví dụ: Sai ID sự kiện, User không tồn tại)
+     * Xử lý lỗi Không tìm thấy dữ liệu (Sai ID sự kiện, User không tồn tại)
      * Trả về mã 404 Not Found
      */
     @ExceptionHandler(EntityNotFoundException.class)
@@ -42,7 +42,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Xử lý lỗi Không có quyền truy cập (Ví dụ: Student cố xóa sự kiện)
+     * Xử lý lỗi Không có quyền truy cập (Student cố xóa sự kiện)
      * Trả về mã 403 Forbidden
      */
     @ExceptionHandler(AccessDeniedException.class)
@@ -70,7 +70,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Xử lý lỗi vi phạm ràng buộc CSDL (Ví dụ: Trùng tên danh mục, trùng email mà code logic chưa bắt được)
+     * Xử lý lỗi vi phạm ràng buộc CSDL (Trùng tên danh mục, trùng email mà code logic chưa bắt được)
      * Trả về mã 400 Conflict
      */
     @ExceptionHandler(DataIntegrityViolationException.class)
@@ -78,7 +78,6 @@ public class GlobalExceptionHandler {
         Map<String, String> response = new HashMap<>();
         response.put("status", "error");
 
-        // Phân tích thông báo lỗi để trả về câu dễ hiểu hơn
         String msg = e.getMessage();
         if (msg != null) {
             if (msg.contains("ten_danh_muc")) {

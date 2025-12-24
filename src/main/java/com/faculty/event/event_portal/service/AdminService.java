@@ -9,29 +9,27 @@ import java.util.List;
 import java.util.Map;
 
 public interface AdminService {
-    // 1. Quản lý User
+
     List<UserResponse> getAllUsers();
     List<EventResponse> getAllEventsForAdmin();
 
-    // --- [QUAN TRỌNG] HÀM MỚI ĐỂ XÓA USER VÀ DỮ LIỆU LIÊN QUAN ---
     @Transactional
-    // Đảm bảo nếu lỗi thì rollback toàn bộ
     void deleteUser(Long userId);
 
     void changePassword(String userEmail, ChangePasswordRequest request);
     void toggleUserLock(Long userId);
 
-    // --- User Recycle Bin ---
+    // User Recycle Bin
     List<UserResponse> getDeletedUsers();
     void restoreUser(Long userId);
     void permanentDeleteUser(Long userId);
 
-    // --- Event Recycle Bin ---
+    // Event Recycle Bin
     List<EventResponse> getDeletedEvents();
     void restoreEvent(Long eventId);
     void permanentDeleteEvent(Long eventId);
 
-    // Danh mục
+    // Category Recycle Bin
     List<Category> getDeletedCategories();
     Category restoreCategory(Long id);
     void hardDeleteCategory(Long id);
@@ -44,10 +42,10 @@ public interface AdminService {
     UserResponse updateMyProfile(String userEmail, UpdateProfileRequest request);
     UserResponse updateUser(Long userId, UpdateUserRequest request);
 
-    // 2. Quản lý Sự kiện (Duyệt bài)
+    // Quản lý Sự kiện
     void approveEvent(Long eventId);
 
-    // 3. Thống kê tổng quan
+    // Thống kê tổng quan
     Map<String, Long> getDashboardStats();
 
     Map<String, Long> getEventRegistrationStats(); // Thống kê lượt đăng ký sự kiện

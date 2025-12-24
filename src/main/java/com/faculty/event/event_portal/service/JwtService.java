@@ -22,8 +22,6 @@ import java.nio.charset.StandardCharsets;
 @Service
 public class JwtService {
 
-    // Tạo một key bí mật (ít nhất 256 bit) và lưu vào application.properties
-    // Ví dụ: jwt.secret=daylamotkeybimatratdainvaduynhatcuaban123456789
     @Value("${jwt.secret}")
     private String SECRET_KEY;
 
@@ -38,37 +36,32 @@ public class JwtService {
         return claimsResolver.apply(claims);
     }
 
-    // Code MỚI (đã bổ sung ROLE)
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
 
         // Lấy role từ UserDetails và đưa vào claims
-        // Vì userDetails.getAuthorities() trả về một danh sách, ta lấy phần tử đầu tiên
         String role = userDetails.getAuthorities().stream()
                 .findFirst()
                 .map(GrantedAuthority::getAuthority)
-                .orElse("STUDENT"); // Giá trị mặc định nếu không tìm thấy
+                .orElse("STUDENT");
 
-        claims.put("role", role); // <-- QUAN TRỌNG NHẤT: Thêm dòng này
+        claims.put("role", role);
 
         return createToken(claims, userDetails.getUsername());
     }
 
-    // --- HÀM MỚI (chấp nhận User entity) ---
     public String generateToken(User user) {
         Map<String, Object> claims = new HashMap<>();
 
-        // Thêm các claims tùy chỉnh
         claims.put("role", user.getRole().name());
-        claims.put("hoTen", user.getHoTen()); // <-- ĐÂY LÀ DÒNG MỚI QUAN TRỌNG
+        claims.put("hoTen", user.getHoTen());
 
-        return createToken(claims, user.getEmail()); // Dùng email làm subject
+        return createToken(claims, user.getEmail());
     }
 
-    // Hàm createToken (nếu bạn tách riêng ra)
     private String createToken(Map<String, Object> claims, String subject) {
         return Jwts.builder()
-                .setClaims(claims) // <-- Đảm bảo có dòng này để đưa claims vào token
+                .setClaims(claims)
                 .setSubject(subject)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24))
@@ -109,9 +102,7 @@ public class JwtService {
     }
 
     private Key getSignInKey() {
-        // Chuyển đổi key (văn bản thuần) sang mảng byte
         byte[] keyBytes = SECRET_KEY.getBytes(StandardCharsets.UTF_8);
-        // Dùng mảng byte đó để tạo key
         return Keys.hmacShaKeyFor(keyBytes);
     }
 }

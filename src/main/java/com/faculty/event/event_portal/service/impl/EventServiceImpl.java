@@ -39,7 +39,7 @@ public class EventServiceImpl implements EventService {
 
     private final EventRepository eventRepository;
     private final UserRepository userRepository;
-    private final RegistrationRepository registrationRepository; // Inject thêm cái này
+    private final RegistrationRepository registrationRepository;
     private final CategoryRepository categoryRepository;
     private final NotificationService notificationService;
 
@@ -57,20 +57,18 @@ public class EventServiceImpl implements EventService {
 
             // Tạo tên file ngẫu nhiên để tránh trùng (UUID)
             String originalFileName = file.getOriginalFilename();
-            // Lấy đuôi file (jpg, png)
+
             String fileExtension = "";
             if (originalFileName != null && originalFileName.contains(".")) {
                 fileExtension = originalFileName.substring(originalFileName.lastIndexOf("."));
             }
 
-            // Tên file mới: UUID + đuôi file
             String newFileName = UUID.randomUUID().toString() + fileExtension;
 
-            // Copy file vào thư mục đích
             Path targetLocation = fileStorageLocation.resolve(newFileName);
             Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
 
-            return newFileName; // Trả về tên file để lưu vào DB
+            return newFileName;
         } catch (IOException ex) {
             throw new RuntimeException("Không thể lưu file " + file.getOriginalFilename(), ex);
         }
@@ -81,15 +79,15 @@ public class EventServiceImpl implements EventService {
                             UserRepository userRepository,
                             RegistrationRepository registrationRepository,
                             CategoryRepository categoryRepository,
-                            NotificationService notificationService) { // Cập nhật constructor
+                            NotificationService notificationService) {
         this.eventRepository = eventRepository;
         this.userRepository = userRepository;
-        this.registrationRepository = registrationRepository; // Gán giá trị
+        this.registrationRepository = registrationRepository;
         this.categoryRepository = categoryRepository;
         this.notificationService = notificationService;
     }
 
-    // --- Hàm helper để chuyển Entity -> DTO ---
+    // --- Hàm helper để chuyển Entity sang DTO ---
     private EventResponse convertToResponse(Event event, Boolean isRegistered) {
         EventResponse response = new EventResponse();
         response.setId(event.getId());
@@ -107,10 +105,8 @@ public class EventServiceImpl implements EventService {
         response.setTrangThai(event.getTrangThai().name());
         response.setLuotXem(event.getLuotXem());
         // response.setTenNguoiDang(event.getNguoiDang().getHoTen());
-        // 1. Map Người Đăng (Xử lý an toàn)
         try {
             if (event.getNguoiDang() != null) {
-                // Lưu ý: Backend trả về String 'tenNguoiDang', không phải object
                 response.setTenNguoiDang(event.getNguoiDang().getHoTen());
             } else {
                 response.setTenNguoiDang("Admin");
@@ -119,13 +115,11 @@ public class EventServiceImpl implements EventService {
             response.setTenNguoiDang("Người dùng đã xóa");
         }
 
-        // 2. Map Danh Mục (MỚI THÊM)
         if (event.getCategory() != null) {
             try {
                 response.setTenDanhMuc(event.getCategory().getTenDanhMuc());
                 response.setCategoryId(event.getCategory().getId());
             } catch (EntityNotFoundException | NullPointerException e) {
-                // Trường hợp Hibernate proxy lỗi do category không tìm thấy
                 response.setTenDanhMuc("Danh mục đã xóa");
                 response.setCategoryId(null);
             }
@@ -134,7 +128,7 @@ public class EventServiceImpl implements EventService {
             response.setCategoryId(null);
         }
         response.setCreatedAt(event.getCreatedAt());
-        response.setIsRegistered(isRegistered); // Gán giá trị mới
+        response.setIsRegistered(isRegistered);
 //        response.setDeleted(event.isDeleted());
         return response;
     }
@@ -148,7 +142,7 @@ public class EventServiceImpl implements EventService {
 
         return eventRepository.findAll(spec, sort) // Dùng findAll có Specification
                 .stream()
-                .map(event -> convertToResponse(event, false)) // Mặc định là false
+                .map(event -> convertToResponse(event, false))
                 .collect(Collectors.toList());
     }
 
@@ -156,7 +150,6 @@ public class EventServiceImpl implements EventService {
     @Override
     public List<EventResponse> getAllEventsForAdmin() {
         // Lấy tất cả sự kiện có trạng thái KHÔNG PHẢI LÀ DRAFT
-        // Sắp xếp theo ngày tạo mới nhất (hoặc ngày bắt đầu tùy bạn)
         List<Event> events = eventRepository.findAllByTrangThaiNot(
                 EventStatus.DRAFT,
                 Sort.by(Sort.Direction.DESC, "createdAt")
@@ -190,7 +183,7 @@ public class EventServiceImpl implements EventService {
                 }
             }
         } catch (Exception e) {
-            // Bỏ qua lỗi nếu không lấy được user (ví dụ: chưa đăng nhập)
+            // Bỏ qua lỗi nếu không lấy được user
             isRegistered = false;
         }
 
@@ -199,63 +192,57 @@ public class EventServiceImpl implements EventService {
 
     @Override
     public EventResponse createEvent(EventRequest request, MultipartFile image, MultipartFile coverImage, String posterEmail) {
-        // 1. Tìm user (người đăng)
+        // Tìm user (người đăng)
         User poster = userRepository.findByEmail(posterEmail)
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy người đăng"));
 
-        // 2. Chuyển DTO -> Entity
+        // Chuyển DTO ssang Entity
         Event event = new Event();
         event.setTieuDe(request.getTieuDe());
         event.setMoTaNgan(request.getMoTaNgan());
         event.setNoiDung(request.getNoiDung());
 //        event.setAnhThumbnail(request.getAnhThumbnail());
         if (image != null && !image.isEmpty()) {
-            String fileName = storeFile(image); // Lưu file vào ổ cứng
-            event.setAnhThumbnail(fileName);    // Lưu TÊN FILE vào DB (Ví dụ: 3c1f4692....jpg)
+            String fileName = storeFile(image);
+            event.setAnhThumbnail(fileName);
         } else {
-            // Nếu không chọn ảnh, có thể để null hoặc ảnh mặc định
             event.setAnhThumbnail(null);
         }
         if (coverImage != null && !coverImage.isEmpty()) {
-            String coverName = storeFile(coverImage); // Lưu file
-            event.setAnhBia(coverName);               // Lưu tên vào DB
+            String coverName = storeFile(coverImage);
+            event.setAnhBia(coverName);
         } else {
-            // Nếu không chọn ảnh, có thể để null hoặc ảnh mặc định
             event.setAnhBia(null);
         }
         event.setThoiGianBatDau(request.getThoiGianBatDau());
         event.setThoiGianKetThuc(request.getThoiGianKetThuc());
         event.setDiaDiem(request.getDiaDiem());
         event.setSoLuongGioiHan(request.getSoLuongGioiHan());
-        event.setNguoiDang(poster); // Gán người tạo
-        // === SỬA ĐOẠN SET TRẠNG THÁI ===
+        event.setNguoiDang(poster);
+
         if ("PENDING".equals(request.getTrangThai())) {
-            event.setTrangThai(EventStatus.PENDING); // Gửi duyệt (Chờ duyệt)
+            event.setTrangThai(EventStatus.PENDING);
         } else {
-            event.setTrangThai(EventStatus.DRAFT); // Mặc định là Nháp
+            event.setTrangThai(EventStatus.DRAFT);
         }
 
         if (request.getCategoryId() != null) {
             Category category = categoryRepository.findById(request.getCategoryId())
                     .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy Danh mục (Category) với ID: " + request.getCategoryId()));
-            event.setCategory(category); // Gán đối tượng Category đã tìm được
+            event.setCategory(category);
         }
 
-        // 3. Lưu vào CSDL
         Event savedEvent = eventRepository.save(event);
 
-        // === THÊM ĐOẠN CODE THÔNG BÁO NÀY ===
         try {
-            // 1. Tìm tất cả Admin
             List<User> admins = userRepository.findAllByRole(Role.ADMIN);
 
-            // 2. Gửi thông báo cho từng Admin
             for (User admin : admins) {
                 notificationService.createNotification(
                         admin,
                         "Sự kiện mới cần duyệt",
                         "Poster " + poster.getHoTen() + " vừa đăng sự kiện: " + savedEvent.getTieuDe(),
-                        "WARNING" // Hoặc "INFO"
+                        "WARNING"
                 );
             }
         } catch (Exception e) {
@@ -267,34 +254,32 @@ public class EventServiceImpl implements EventService {
 
     @Override
     public EventResponse updateEvent(Long id, EventRequest request, MultipartFile image, MultipartFile coverImage, String posterEmail) {
-        // 1. Tìm sự kiện
+        // Tìm sự kiện
         Event event = eventRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy sự kiện"));
 
-        // 2. Tìm người dùng
+        // Tìm người dùng
         User poster = userRepository.findByEmail(posterEmail)
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy người dùng"));
 
-        // 3. Kiểm tra quyền: Chỉ chủ sở hữu mới được sửa
+        // Kiểm tra quyền: Chỉ chủ sở hữu mới được sửa
         if (!event.getNguoiDang().getId().equals(poster.getId())) {
             throw new AccessDeniedException("Bạn không có quyền sửa sự kiện này");
         }
 
-        // 4. Cập nhật thông tin
+        // Cập nhật thông tin
         event.setTieuDe(request.getTieuDe());
         event.setMoTaNgan(request.getMoTaNgan());
         event.setNoiDung(request.getNoiDung());
 //        event.setAnhThumbnail(request.getAnhThumbnail());
         if (image != null && !image.isEmpty()) {
-            // 1. Xóa ảnh cũ đi trước khi lưu ảnh mới (để tránh rác server)
             deleteFile(event.getAnhThumbnail());
-            // 2. Lưu ảnh mới
             String fileName = storeFile(image);
             event.setAnhThumbnail(fileName);
         }
-        if (coverImage != null && !coverImage.isEmpty()) { // <--- Phải check 'coverImage'
+        if (coverImage != null && !coverImage.isEmpty()) {
             deleteFile(event.getAnhBia());
-            String coverName = storeFile(coverImage);      // <--- Phải store 'coverImage'
+            String coverName = storeFile(coverImage);
             event.setAnhBia(coverName);
         }
         event.setThoiGianBatDau(request.getThoiGianBatDau());
@@ -307,17 +292,15 @@ public class EventServiceImpl implements EventService {
                     .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy Danh mục (Category) với ID: " + request.getCategoryId()));
             event.setCategory(category);
         } else {
-            event.setCategory(null); // Cho phép gỡ bỏ category
+            event.setCategory(null);
         }
 
         if (request.getTrangThai() != null) {
             if ("PENDING".equals(request.getTrangThai())) {
-                event.setTrangThai(EventStatus.PENDING); // Gửi duyệt
-
-                // (Optional) Gửi thông báo cho Admin tại đây nếu muốn
+                event.setTrangThai(EventStatus.PENDING);
 
             } else if ("DRAFT".equals(request.getTrangThai())) {
-                event.setTrangThai(EventStatus.DRAFT); // Về nháp
+                event.setTrangThai(EventStatus.DRAFT);
             }
         }
 
@@ -328,28 +311,26 @@ public class EventServiceImpl implements EventService {
     @Override
     @Transactional
     public void deleteEvent(Long id, String userEmail) {
-        // 1. Tìm sự kiện
+        // Tìm sự kiện
         Event event = eventRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy sự kiện"));
 
-        // 2. Tìm người dùng
+        // Tìm người dùng
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy người dùng"));
 
-        // 3. Kiểm tra quyền: Chủ sở hữu HOẶC ADMIN mới được xóa
+        // Kiểm tra quyền: Chủ sở hữu HOẶC ADMIN mới được xóa
         if (!event.getNguoiDang().getId().equals(user.getId()) && user.getRole() != Role.ADMIN) {
             throw new AccessDeniedException("Bạn không có quyền xóa sự kiện này");
         }
 
-        // 4. THỰC HIỆN XÓA MỀM (Soft Delete)
-        // Thay vì eventRepository.delete(event), ta set thời gian xóa
+        // THỰC HIỆN XÓA MỀM (Soft Delete)
         event.setDeletedAt(LocalDateTime.now());
 
-        // Lưu lại cập nhật vào DB
         eventRepository.save(event);
     }
 
-    // 1. Admin TỪ CHỐI (Kèm lý do và thông báo)
+    // Admin TỪ CHỐI
     @Override
     public void rejectEvent(Long eventId, String reason) {
         Event event = eventRepository.findById(eventId)
@@ -363,37 +344,36 @@ public class EventServiceImpl implements EventService {
         event.setTrangThai(EventStatus.DRAFT);
         eventRepository.save(event);
 
-        // === GỬI THÔNG BÁO CHO POSTER ===
+        // GỬI THÔNG BÁO CHO POSTER
         String notifyContent = "Sự kiện '" + event.getTieuDe() + "' đã bị từ chối.";
         if (reason != null && !reason.trim().isEmpty()) {
             notifyContent += " Lý do: " + reason;
         }
 
         notificationService.createNotification(
-                event.getNguoiDang(), // Người nhận (Poster)
-                "Sự kiện bị từ chối",  // Tiêu đề
-                notifyContent,         // Nội dung kèm lý do
-                "ERROR"                // Loại thông báo (Màu đỏ)
+                event.getNguoiDang(),
+                "Sự kiện bị từ chối",
+                notifyContent,
+                "ERROR"
         );
     }
 
-    // 2. Admin HỦY (Kèm lý do và thông báo)
+    // Admin HỦY
     @Override
     public void cancelEvent(Long eventId, String reason) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new EntityNotFoundException("Event not found"));
 
-        // Chỉ cho phép hủy nếu sự kiện đã Public (hoặc tùy logic bạn)
+        // Chỉ cho phép hủy nếu sự kiện đã Public
         if (event.getTrangThai() != EventStatus.PUBLISHED) {
             throw new IllegalStateException("Chỉ hủy được sự kiện đã công khai");
         }
 
         // Đổi trạng thái sang CANCELLED
         event.setTrangThai(EventStatus.CANCELLED);
-        // LƯU Ý: Không set deletedAt, để nó vẫn hiện trong danh sách (tab Đã hủy)
         eventRepository.save(event);
 
-        // === GỬI THÔNG BÁO CHO POSTER ===
+        // GỬI THÔNG BÁO CHO POSTER
         String notifyContent = "Sự kiện '" + event.getTieuDe() + "' đã bị Admin hủy bỏ.";
         if (reason != null && !reason.trim().isEmpty()) {
             notifyContent += " Lý do: " + reason;
@@ -419,7 +399,7 @@ public class EventServiceImpl implements EventService {
                 .collect(Collectors.toList());
     }
 
-    // 1. Lấy danh sách thùng rác của Poster
+    // Lấy danh sách thùng rác của Poster
     @Override
     public List<EventResponse> getMyDeletedEvents(String posterEmail) {
         User poster = userRepository.findByEmail(posterEmail)
@@ -433,7 +413,7 @@ public class EventServiceImpl implements EventService {
                 .collect(Collectors.toList());
     }
 
-    // 2. Khôi phục sự kiện (Dành cho Poster)
+    // Khôi phục sự kiện (Dành cho Poster)
     @Override
     @Transactional
     public void restoreEvent(Long id, String userEmail) {
@@ -449,7 +429,6 @@ public class EventServiceImpl implements EventService {
             throw new AccessDeniedException("Bạn không có quyền khôi phục sự kiện này");
         }
 
-        // Thực hiện khôi phục
         eventRepository.restoreEvent(id);
     }
 
@@ -457,23 +436,20 @@ public class EventServiceImpl implements EventService {
     private void deleteFile(String fileName) {
         if (fileName == null || fileName.isEmpty()) return;
 
-        // 👇 THÊM ĐOẠN NÀY: Kiểm tra nếu là link online thì không làm gì cả
         if (fileName.startsWith("http://") || fileName.startsWith("https://")) {
-            return; // Đây là ảnh URL, không phải file trên server nên bỏ qua
+            return;
         }
-        // ------------------------------------------------------------------
 
         try {
             Path filePath = fileStorageLocation.resolve(fileName).normalize();
-            Files.deleteIfExists(filePath); // Xóa file nếu tồn tại
+            Files.deleteIfExists(filePath);
             System.out.println("Đã xóa file: " + fileName);
         } catch (Exception ex) {
-            // Sửa lại catch Exception để bắt cả InvalidPathException
             System.err.println("Không thể xóa file: " + fileName + ". Lỗi: " + ex.getMessage());
         }
     }
 
-    // 3. Xóa vĩnh viễn (Dành cho Poster)
+    // Xóa vĩnh viễn (Dành cho Poster)
     @Override
     @Transactional
     public void permanentDelete(Long id, String userEmail) {
@@ -487,15 +463,14 @@ public class EventServiceImpl implements EventService {
             throw new AccessDeniedException("Bạn không có quyền xóa vĩnh viễn sự kiện này");
         }
 
-        deleteFile(event.getAnhThumbnail()); // Xóa thumbnail
-        deleteFile(event.getAnhBia()); // Xóa ảnh bìa (nếu có)
+        deleteFile(event.getAnhThumbnail());
+        deleteFile(event.getAnhBia());
 
 //        eventRepository.delete(event);
         eventRepository.deleteRegistrationsByEventId(id);
         eventRepository.permanentDelete(id);
     }
 
-    // Import thêm: java.util.ArrayList, com.faculty.event.event_portal.dto.ParticipantResponse
     @Override
     public List<ParticipantResponse> getEventParticipants(Long eventId, String posterEmail) {
         Event event = eventRepository.findById(eventId)
@@ -503,7 +478,7 @@ public class EventServiceImpl implements EventService {
         User poster = userRepository.findByEmail(posterEmail)
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy người dùng"));
 
-        // Kiểm tra: Chỉ chủ sự kiện hoặc Admin mới được xem
+        // Chỉ chủ sự kiện hoặc Admin mới được xem
         if (!event.getNguoiDang().getId().equals(poster.getId()) && poster.getRole() != Role.ADMIN) {
             throw new AccessDeniedException("Bạn không có quyền xem danh sách này");
         }
@@ -529,14 +504,14 @@ public class EventServiceImpl implements EventService {
 
     @Override
     public byte[] exportEventParticipantsToExcel(Long eventId, String posterEmail) throws IOException {
-        // 1. Lấy dữ liệu (tái sử dụng hàm trên)
+        // Lấy dữ liệu (tái sử dụng hàm trên)
         List<ParticipantResponse> participants = getEventParticipants(eventId, posterEmail);
 
-        // 2. Tạo file Excel trong bộ nhớ
+        // Tạo file Excel trong bộ nhớ
         XSSFWorkbook workbook = new XSSFWorkbook();
         XSSFSheet sheet = workbook.createSheet("Danh sach tham gia");
 
-        // 3. Tạo hàng tiêu đề (Header)
+        // Tạo hàng tiêu đề (Header)
         String[] HEADERS = {"STT", "Họ tên", "MSSV", "Email", "Lớp", "Trạng thái vé", "Thời gian ĐK"};
         Row headerRow = sheet.createRow(0);
         for (int i = 0; i < HEADERS.length; i++) {
@@ -544,7 +519,7 @@ public class EventServiceImpl implements EventService {
             cell.setCellValue(HEADERS[i]);
         }
 
-        // 4. Đổ dữ liệu
+        // Đổ dữ liệu
         int rowNum = 1;
         for (ParticipantResponse p : participants) {
             Row row = sheet.createRow(rowNum++);
@@ -557,7 +532,7 @@ public class EventServiceImpl implements EventService {
             row.createCell(6).setCellValue(p.getThoiGianDangKy().toString()); // Cần format đẹp hơn
         }
 
-        // 5. Ghi vào output stream
+        // Ghi vào output stream
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         workbook.write(outputStream);
         workbook.close();

@@ -57,7 +57,6 @@ public class AdminServiceImpl implements AdminService {
         this.passwordEncoder = passwordEncoder;
     }
 
-    // ... (Các hàm convert và helper giữ nguyên)
     private EventResponse convertToResponse(Event event, Boolean isRegistered) {
         EventResponse response = new EventResponse();
         response.setId(event.getId());
@@ -75,7 +74,6 @@ public class AdminServiceImpl implements AdminService {
         try {
             User poster = event.getNguoiDang();
             if (poster != null) {
-                // Nếu User bị khóa (Soft delete) -> Hiển thị là Admin
                 if (poster.getDeletedAt() != null || poster.isLocked()) {
                     response.setTenNguoiDang("Admin");
                 } else {
@@ -194,37 +192,28 @@ public class AdminServiceImpl implements AdminService {
         userRepository.save(user);
     }
 
-    // --- [QUAN TRỌNG] HÀM MỚI ĐỂ XÓA USER VÀ DỮ LIỆU LIÊN QUAN ---
     @Transactional
     @Override
     public void deleteUser(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
 
-        // 1. Xóa tất cả các vé (Registrations) của user này
-        // (Đây là nguyên nhân gây lỗi 23503 của bạn)
         List<Registration> registrations = registrationRepository.findAllByUser(user);
         registrationRepository.deleteAll(registrations);
 
         notificationRepository.deleteAllByUserId(userId);
 
-        // 2. Nếu User là Poster, cần xóa (hoặc xử lý) các sự kiện họ đã tạo
-        // Nếu không xóa sự kiện, khi xóa user sẽ lại lỗi FK ở bảng events
         List<Event> events = eventRepository.findAllByNguoiDang(user);
         if (!events.isEmpty()) {
-            // Trước khi xóa sự kiện, phải xóa các vé của sự kiện đó (của những sinh viên khác)
             for (Event event : events) {
                 List<Registration> eventRegs = registrationRepository.findAllByEvent(event);
                 registrationRepository.deleteAll(eventRegs);
             }
-            // Sau đó xóa sự kiện
             eventRepository.deleteAll(events);
         }
 
-        // 3. Cuối cùng mới xóa User
         userRepository.delete(user);
     }
-    // -------------------------------------------------------------
 
     @Override
     @Transactional
@@ -291,10 +280,6 @@ public class AdminServiceImpl implements AdminService {
                 .map(event -> convertToResponse(event, false))
                 .collect(Collectors.toList());
     }
-
-    // ... (Các hàm thống kê và xuất báo cáo giữ nguyên như file bạn gửi) ...
-    // Để tiết kiệm không gian, tôi chỉ paste lại những phần đã sửa,
-    // nhưng bạn hãy copy toàn bộ file này đè lên file cũ vì nó đã bao gồm đầy đủ imports và cấu trúc class.
 
     @Override
     public Map<String, Long> getTopEventStats(int year, int month) {
@@ -527,49 +512,36 @@ public class AdminServiceImpl implements AdminService {
     @Override
     @Transactional
     public void permanentDeleteUser(Long userId) {
-        // A. Tìm user trong thùng rác
+        // Tìm user trong thùng rác
         User user = userRepository.findSoftDeletedById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy user trong thùng rác"));
 
-        // B. Tìm Admin để nhận sự kiện
+        // Tìm Admin để nhận sự kiện
         User adminUser = userRepository.findFirstByRole(Role.ADMIN);
         if (adminUser == null) {
             throw new RuntimeException("Hệ thống cần ít nhất 1 Admin để tiếp nhận sự kiện");
         }
 
-        // C. Xóa vé & Thông báo
+        // Xóa vé & Thông báo
         registrationRepository.deleteAllByUserId(userId);
         notificationRepository.deleteAllByUserId(userId);
 
-        // D. XỬ LÝ SỰ KIỆN (SỬA ĐOẠN NÀY)
-        // ❌ Cũ: List<Event> events = eventRepository.findAllByNguoiDang(user); -> Bỏ dòng này
-
-        // ✅ Mới: Lấy tất cả sự kiện, KỂ CẢ SỰ KIỆN TRONG THÙNG RÁC
+        // Lấy tất cả sự kiện
         List<Event> events = eventRepository.findAllByNguoiDangIdIncludingDeleted(userId);
 
         if (!events.isEmpty()) {
             for (Event event : events) {
-                // Logic: Chỉ giữ lại sự kiện ĐÃ PUBLISHED và CHƯA BỊ XÓA MỀM
-                // (Sự kiện trong thùng rác dù đã Publish trước đó cũng nên xóa luôn cho sạch)
                 boolean isPublishedAndActive = event.getTrangThai() == EventStatus.PUBLISHED && event.getDeletedAt() == null;
 
                 if (isPublishedAndActive) {
-                    // ==> TRƯỜNG HỢP 1: Sự kiện tốt -> CHUYỂN CHO ADMIN
                     event.setNguoiDang(adminUser);
                     eventRepository.save(event);
                 } else {
-                    // ==> TRƯỜNG HỢP 2: Nháp, Hủy, hoặc ĐANG TRONG THÙNG RÁC -> XÓA VĨNH VIỄN
-
-                    // 1. Xóa vé của sự kiện này (dùng native query cho chắc chắn)
                     registrationRepository.deleteRegistrationsByEventId(event.getId());
-
-                    // 2. Xóa sự kiện vĩnh viễn
                     eventRepository.permanentDelete(event.getId());
                 }
             }
         }
-
-        // E. Cuối cùng: Xóa vĩnh viễn User
         userRepository.permanentDelete(userId);
     }
 
@@ -598,17 +570,13 @@ public class AdminServiceImpl implements AdminService {
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy sự kiện trong thùng rác"));
 
         if (registrationRepository.countByEvent(event) > 0) {
-            // Hoặc bạn có thể cho phép xóa luôn vé tại đây:
-            // registrationRepository.deleteAllByEvent(event);
-            // eventRepository.permanentDelete(eventId);
             throw new IllegalStateException("Không thể xóa vĩnh viễn. Sự kiện này đã có người đăng ký.");
         }
 
         eventRepository.permanentDelete(eventId);
     }
 
-    // ... (Phần Category Trash, Dashboard Activity giữ nguyên)
-    // 3. Category Trash
+    // Category Trash
     @Override
     public List<Category> getDeletedCategories() {
         return categoryRepository.findSoftDeleted();
@@ -623,16 +591,10 @@ public class AdminServiceImpl implements AdminService {
     @Override
     @Transactional
     public void hardDeleteCategory(Long id) {
-        // 1. Tìm danh mục trong thùng rác (để chắc chắn nó tồn tại)
-        // (Hoặc tìm bằng findById nếu bạn cho phép xóa cứng trực tiếp không qua thùng rác)
         Category category = categoryRepository.findSoftDeletedById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy danh mục trong thùng rác"));
-
-        // 2. [QUAN TRỌNG] Gỡ danh mục này ra khỏi TẤT CẢ sự kiện (Set về NULL)
-        // Nếu không làm bước này, DB sẽ báo lỗi Foreign Key
         eventRepository.unlinkCategory(id);
 
-        // 3. Xóa vĩnh viễn danh mục
         categoryRepository.permanentDelete(id);
     }
 
@@ -698,7 +660,6 @@ public class AdminServiceImpl implements AdminService {
                         "register"
                 ));
             } catch (EntityNotFoundException ex) {
-                // Skip if related data is missing
             }
         }
 

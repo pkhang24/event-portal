@@ -4,7 +4,6 @@ import lombok.Data;
 
 @Data
 public class UpdateProfileRequest {
-    // Chỉ cho phép cập nhật 2 trường này
     private String email;
     private String soDienThoai;
 }

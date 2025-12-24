@@ -15,7 +15,6 @@ public class Notification {
     private String title;
     private String message;
 
-    // Loại thông báo (ví dụ: INFO, WARNING, SUCCESS) để hiển thị icon khác nhau
     private String type = "INFO";
 
     @Column(name = "is_read")
@@ -24,7 +23,6 @@ public class Notification {
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    // Thông báo thuộc về user nào
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;

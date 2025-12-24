@@ -5,11 +5,10 @@ import java.time.LocalDateTime;
 
 @Data
 public class EventResponse {
-    // Trả về các thông tin này cho frontend
     private Long id;
     private String tieuDe;
     private String moTaNgan;
-    private String noiDung; // Cần cho trang chi tiết
+    private String noiDung;
     private String anhThumbnail;
     private String anhBia;
     private LocalDateTime thoiGianBatDau;
@@ -17,12 +16,12 @@ public class EventResponse {
     private String diaDiem;
     private Integer soLuongGioiHan;
     private Long soNguoiDaDangKy;
-    private String trangThai; // "DRAFT" hoặc "PUBLISHED"
+    private String trangThai;
     private int luotXem;
-    private String tenNguoiDang; // Thêm thông tin người đăng cho đẹp
+    private String tenNguoiDang;
     private String tenDanhMuc;
     private Long categoryId;
     private LocalDateTime createdAt;
-    private Boolean isRegistered; // Thêm trường này (có thể null nếu user chưa đăng nhập)
+    private Boolean isRegistered;
 //    private boolean deleted;
 }

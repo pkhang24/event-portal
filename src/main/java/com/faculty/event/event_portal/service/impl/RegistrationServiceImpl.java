@@ -38,7 +38,7 @@ public class RegistrationServiceImpl implements RegistrationService {
         this.notificationService = notificationService;
     }
 
-    // --- Hàm helper để chuyển Entity -> DTO ---
+    // Hàm helper để chuyển Entity sang DTO
     private TicketResponse convertToTicketResponse(Registration reg) {
         TicketResponse ticket = new TicketResponse();
         ticket.setRegistrationId(reg.getId());
@@ -60,27 +60,36 @@ public class RegistrationServiceImpl implements RegistrationService {
     @Transactional
     public TicketResponse createRegistration(RegistrationRequest request, String studentEmail) {
 
-        // 1. Lấy thông tin (Giữ nguyên)
+        // Lấy thông tin
         User student = userRepository.findByEmail(studentEmail)
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy sinh viên"));
 
         Event eventMoi = eventRepository.findById(request.getEventId())
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy sự kiện"));
 
-        // 2. KIỂM TRA LOGIC 1: Đã đăng ký sự kiện này chưa? (Giữ nguyên)
+        // Đã đăng ký sự kiện này chưa
         boolean alreadyRegistered = registrationRepository.existsByUserAndEvent(student, eventMoi);
         if (alreadyRegistered) {
             throw new IllegalArgumentException("Bạn đã đăng ký sự kiện này rồi");
         }
 
-        // 3. KIỂM TRA LOGIC 2: Sự kiện còn chỗ không? (Giữ nguyên)
+        // Sự kiện còn chỗ không
         if (eventMoi.getSoLuongGioiHan() != null) {
-            // ... (code kiểm tra số lượng)
+            // Đếm số lượng vé ĐÃ ĐĂNG KÝ THÀNH CÔNG của sự kiện này
+            long soLuongDaDangKy = registrationRepository.countByEventIdAndTrangThai(
+                    eventMoi.getId(),
+                    RegistrationStatus.ATTENDED
+            );
+
+            // So sánh với giới hạn
+            if (soLuongDaDangKy >= eventMoi.getSoLuongGioiHan()) {
+                throw new RuntimeException("Sự kiện đã hết chỗ, vui lòng quay lại sau!");
+            }
         }
 
-        // === 4. KIỂM TRA LOGIC MỚI: Trùng lặp thời gian ===
+        // Trùng lặp thời gian
         LocalDateTime now = LocalDateTime.now();
-        // Lấy tất cả các vé MÀ SINH VIÊN ĐÃ ĐĂNG KÝ (cho các sự kiện chưa kết thúc)
+        // Lấy tất cả các vé MÀ SINH VIÊN ĐÃ ĐĂNG KÝ
         List<Registration> cacVeDaDangKy = registrationRepository.findActiveRegistrationsByUser(student, now);
 
         for (Registration ve : cacVeDaDangKy) {
@@ -93,24 +102,16 @@ public class RegistrationServiceImpl implements RegistrationService {
                             eventMoi.getThoiGianKetThuc().isAfter(eventDaDangKy.getThoiGianBatDau());
 
             if (isOverlapping) {
-                // Nếu trùng, ném lỗi và dừng lại
                 throw new IllegalStateException("Bạn đã đăng ký sự kiện \"" + eventDaDangKy.getTieuDe() + "\" bị trùng thời gian.");
             }
 
-            // === KHẮC PHỤC LỖI Ở ĐÂY: KHỞI TẠO BIẾN newRegistration ===
             Registration newRegistration = new Registration();
             newRegistration.setUser(student);
             newRegistration.setEvent(eventMoi);
-            // Nếu bạn có logic sinh mã vé, hãy thêm vào đây. Ví dụ:
-            // newRegistration.setTicketCode(UUID.randomUUID().toString());
 
-            // Sau đó mới đến dòng lưu (Dòng đang bị lỗi của bạn)
             Registration savedRegistration = registrationRepository.save(newRegistration);
-            // ==========================================================
 
-            // === TẠO THÔNG BÁO (Notification) ===
             try {
-                // Thông báo cho Sinh viên
                 notificationService.createNotification(
                         student,
                         "Đăng ký thành công",
@@ -118,8 +119,6 @@ public class RegistrationServiceImpl implements RegistrationService {
                         "SUCCESS"
                 );
 
-                // Thông báo cho Người đăng (Poster)
-                // Kiểm tra null để tránh lỗi nếu người đăng đã bị xóa
                 if (eventMoi.getNguoiDang() != null) {
                     notificationService.createNotification(
                             eventMoi.getNguoiDang(),
@@ -129,15 +128,12 @@ public class RegistrationServiceImpl implements RegistrationService {
                     );
                 }
             } catch (Exception e) {
-                // Log lỗi nhưng không chặn việc đăng ký
                 System.err.println("Lỗi tạo thông báo: " + e.getMessage());
             }
 
             return convertToTicketResponse(savedRegistration);
         }
-        // =================================================
 
-        // 5. Mọi thứ đều ổn -> Tạo vé (Giữ nguyên)
         Registration newRegistration = new Registration();
         newRegistration.setUser(student);
         newRegistration.setEvent(eventMoi);
@@ -150,21 +146,20 @@ public class RegistrationServiceImpl implements RegistrationService {
     @Override
     @Transactional
     public void cancelRegistration(Long registrationId, String studentEmail) {
-        // 1. Tìm vé
+        // Tìm vé
         Registration registration = registrationRepository.findById(registrationId)
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy vé đăng ký"));
 
-        // 2. Kiểm tra xem user có phải chủ vé không
+        // Kiểm tra xem user có phải chủ vé không
         if (!registration.getUser().getEmail().equals(studentEmail)) {
             throw new AccessDeniedException("Bạn không có quyền hủy vé này");
         }
 
-        // 3. Kiểm tra xem sự kiện đã bắt đầu chưa
+        // Kiểm tra xem sự kiện đã bắt đầu chưa
         if (registration.getEvent().getThoiGianBatDau().isBefore(LocalDateTime.now())) {
             throw new IllegalStateException("Không thể hủy vé vì sự kiện đã diễn ra");
         }
 
-        // 4. Mọi thứ OK -> Xóa vé
         registrationRepository.delete(registration);
     }
 
@@ -183,22 +178,20 @@ public class RegistrationServiceImpl implements RegistrationService {
     @Override
     @Transactional
     public TicketResponse checkInTicket(String ticketCode) {
-        // 1. Tìm vé bằng mã code (phải là unique)
+        // Tìm vé bằng mã code (phải là unique)
         Registration registration = registrationRepository.findByTicketCode(ticketCode)
                 .orElseThrow(() -> new EntityNotFoundException("Mã vé không hợp lệ"));
 
-        // 2. Kiểm tra xem vé đã được điểm danh chưa
+        // Kiểm tra xem vé đã được điểm danh chưa
         if (registration.getTrangThai() == RegistrationStatus.ATTENDED) {
             throw new IllegalStateException("Vé này đã được điểm danh rồi");
         }
 
-        // 3. Cập nhật trạng thái
+        // Cập nhật trạng thái
         registration.setTrangThai(RegistrationStatus.ATTENDED);
 
-        // 4. Lưu lại
         Registration updatedRegistration = registrationRepository.save(registration);
 
-        // === THÊM ĐOẠN NÀY: Báo cho Sinh viên ===
         try {
             notificationService.createNotification(
                     registration.getUser(),
@@ -210,7 +203,6 @@ public class RegistrationServiceImpl implements RegistrationService {
             System.err.println("Lỗi thông báo checkin: " + e.getMessage());
         }
 
-        // 5. Trả về thông tin vé (để hiển thị cho người check-in)
         return convertToTicketResponse(updatedRegistration);
     }
 
@@ -219,11 +211,10 @@ public class RegistrationServiceImpl implements RegistrationService {
         User student = userRepository.findByEmail(studentEmail)
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy sinh viên"));
 
-        // Gọi hàm repository mới
         List<Registration> historyRegistrations = registrationRepository.findHistoryByUser(student, LocalDateTime.now());
 
         return historyRegistrations.stream()
-                .map(this::convertToTicketResponse) // Dùng lại hàm convert đã có
+                .map(this::convertToTicketResponse)
                 .collect(Collectors.toList());
     }
 }

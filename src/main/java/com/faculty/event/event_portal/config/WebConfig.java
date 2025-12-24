@@ -17,11 +17,8 @@ public class WebConfig implements WebMvcConfigurer{
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
-                // Cho phép tất cả các API
                 registry.addMapping("/api/**")
-                        // Cho phép React (chạy ở 5173) gọi
                         .allowedOrigins("http://localhost:5173")
-                        // Cho phép các method này
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                         .allowedHeaders("*")
                         .allowCredentials(true);
@@ -31,12 +28,8 @@ public class WebConfig implements WebMvcConfigurer{
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // Lấy đường dẫn tuyệt đối tới thư mục uploads của dự án
         Path uploadDir = Paths.get("./uploads");
         String uploadPath = uploadDir.toFile().getAbsolutePath();
-
-        // Cấu hình: Khi gọi http://localhost:8080/uploads/ten-file.jpg
-        // -> Sẽ tìm trong thư mục uploads trên ổ cứng
         registry.addResourceHandler("/uploads/**")
                 .addResourceLocations("file:/" + uploadPath + "/");
     }

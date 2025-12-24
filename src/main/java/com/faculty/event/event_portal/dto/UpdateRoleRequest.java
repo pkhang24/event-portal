@@ -4,5 +4,5 @@ import lombok.Data;
 
 @Data
 public class UpdateRoleRequest {
-    private String role; // Admin sẽ gửi lên "POSTER" hoặc "ADMIN"
+    private String role;
 }

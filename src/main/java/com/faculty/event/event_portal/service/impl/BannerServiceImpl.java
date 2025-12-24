@@ -26,7 +26,7 @@ public class BannerServiceImpl implements BannerService {
     private final Path fileStorageLocation = Paths.get("uploads").toAbsolutePath().normalize();
 
     @PersistenceContext
-    private EntityManager entityManager; // Tiêm EntityManager để xóa cứng
+    private EntityManager entityManager;
 
     public BannerServiceImpl(BannerRepository bannerRepository) {
         this.bannerRepository = bannerRepository;
@@ -52,24 +52,22 @@ public class BannerServiceImpl implements BannerService {
         }
     }
 
-    // Logic xóa file AN TOÀN TUYỆT ĐỐI
+    // Logic xóa file
     private void deleteFile(String fileName) {
         if (fileName == null || fileName.trim().isEmpty()) return;
-        if (fileName.toLowerCase().startsWith("http")) return; // Bỏ qua link online
+        if (fileName.toLowerCase().startsWith("http")) return;
 
         try {
             Path filePath = this.fileStorageLocation.resolve(fileName).normalize();
             Files.deleteIfExists(filePath);
             System.out.println("DEBUG: Đã xóa file: " + fileName);
         } catch (Exception ex) {
-            // Chỉ in log, KHÔNG throw exception để tránh rollback DB
             System.err.println("WARN: Không xóa được file (vẫn tiếp tục xóa DB): " + ex.getMessage());
         }
     }
 
     @Override
     public List<Banner> getAllBanners() {
-        // Chỉ lấy banner chưa xóa
         return bannerRepository.findAllNotDeleted();
     }
 
@@ -95,8 +93,8 @@ public class BannerServiceImpl implements BannerService {
                 .orElseThrow(() -> new EntityNotFoundException("Banner not found"));
 
         if (image != null && !image.isEmpty()) {
-            deleteFile(banner.getImageUrl()); // Xóa ảnh cũ
-            banner.setImageUrl(storeFile(image)); // Lưu ảnh mới
+            deleteFile(banner.getImageUrl());
+            banner.setImageUrl(storeFile(image));
         }
         if (active != null) banner.setActive(active);
 
@@ -108,7 +106,6 @@ public class BannerServiceImpl implements BannerService {
         Banner banner = bannerRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Banner not found"));
 
-        // Xóa mềm thủ công
         banner.setDeletedAt(LocalDateTime.now());
         banner.setActive(false);
         bannerRepository.save(banner);
@@ -132,22 +129,21 @@ public class BannerServiceImpl implements BannerService {
                 .orElseThrow(() -> new EntityNotFoundException("Banner not found in trash"));
 
         banner.setDeletedAt(null);
-        banner.setActive(false); // Khôi phục nhưng tắt active cho an toàn
+        banner.setActive(false);
         bannerRepository.save(banner);
     }
 
     @Override
     @Transactional
     public void hardDeleteBanner(Long id) {
-        // 1. Tìm banner trong thùng rác
+        // Tìm banner trong thùng rác
         Banner banner = bannerRepository.findSoftDeletedById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Banner not found in trash"));
 
-        // 2. Xóa file ảnh (An toàn, không crash)
+        // Xóa file ảnh
         deleteFile(banner.getImageUrl());
 
-        // 3. Xóa vĩnh viễn trong DB bằng EntityManager (Native SQL)
-        // Cách này bỏ qua mọi quy tắc của Hibernate
+        // Xóa vĩnh viễn trong DB bằng EntityManager
         entityManager.createNativeQuery("DELETE FROM banners WHERE id = :id")
                 .setParameter("id", id)
                 .executeUpdate();

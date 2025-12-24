@@ -26,16 +26,16 @@ public class Event {
     @Column(nullable = false)
     private String tieuDe;
 
-    @Column(columnDefinition = "TEXT") // Dùng TEXT cho mô tả ngắn
+    @Column(columnDefinition = "TEXT")
     private String moTaNgan;
 
-    @Column(columnDefinition = "TEXT") // Dùng TEXT cho nội dung dài
+    @Column(columnDefinition = "TEXT")
     private String noiDung;
 
     @Column(name = "anh_thumbnail")
-    private String anhThumbnail; // URL của ảnh
+    private String anhThumbnail;
 
-    @Column(name = "anh_bia") // Tên cột trong database (nếu cần)
+    @Column(name = "anh_bia")
     private String anhBia;
 
     @Column(nullable = false)
@@ -46,7 +46,7 @@ public class Event {
 
     private String diaDiem;
 
-    @Column(nullable = true) // Có thể null = không giới hạn
+    @Column(nullable = true)
     private Integer soLuongGioiHan;
 
     @Enumerated(EnumType.STRING)
@@ -59,28 +59,22 @@ public class Event {
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    // --- THÊM TRƯỜNG MỚI NÀY ---
     @Column(nullable = true)
     private LocalDateTime deletedAt;
 
-//    @Column(name = "is_deleted") // Tên cột trong Database
-//    private boolean deleted = false; // Mặc định là false (chưa xóa)
+//    @Column(name = "is_deleted")
+//    private boolean deleted = false;
 
-    // --- Định nghĩa Quan hệ (Relationship) ---
-
-    // (FK) Khóa ngoại: nguoi_dang_id
-    // Nhiều sự kiện (Many) thuộc về một người đăng (One)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "nguoi_dang_id", nullable = false)
-    private User nguoiDang; // JPA sẽ tự động hiểu đây là khóa ngoại tới bảng User
+    private User nguoiDang;
 
-    // Tự động gán thời gian hiện tại
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
     }
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category_id", nullable = true) // Cho phép null nếu chưa phân loại
+    @JoinColumn(name = "category_id", nullable = true)
     private Category category;
 }

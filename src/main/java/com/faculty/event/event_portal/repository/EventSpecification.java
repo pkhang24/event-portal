@@ -1,4 +1,4 @@
-package com.faculty.event.event_portal.repository; // Hoặc package khác
+package com.faculty.event.event_portal.repository;
 
 import com.faculty.event.event_portal.entity.Event;
 import com.faculty.event.event_portal.entity.EventStatus;
@@ -12,32 +12,25 @@ public class EventSpecification {
         return (root, query, criteriaBuilder) -> {
             Predicate predicate = criteriaBuilder.conjunction();
 
-            // Luôn lọc các sự kiện đã PUBLISHED
             predicate = criteriaBuilder.and(predicate,
                     criteriaBuilder.equal(root.get("trangThai"), EventStatus.PUBLISHED));
 
-            // 1. Lọc theo Tên (search)
             if (search != null && !search.isEmpty()) {
                 predicate = criteriaBuilder.and(predicate,
                         criteriaBuilder.like(criteriaBuilder.lower(root.get("tieuDe")), "%" + search.toLowerCase() + "%"));
             }
 
-            // 2. Lọc theo Trạng thái (status)
             LocalDateTime now = LocalDateTime.now();
             if ("ongoing".equals(status)) {
-                // Đang diễn ra: (Bắt đầu <= now) VÀ (Kết thúc >= now)
                 predicate = criteriaBuilder.and(predicate,
                         criteriaBuilder.lessThanOrEqualTo(root.get("thoiGianBatDau"), now));
                 predicate = criteriaBuilder.and(predicate,
                         criteriaBuilder.greaterThanOrEqualTo(root.get("thoiGianKetThuc"), now));
             } else if ("upcoming".equals(status)) {
-                // Sắp diễn ra: (Bắt đầu > now)
                 predicate = criteriaBuilder.and(predicate,
                         criteriaBuilder.greaterThan(root.get("thoiGianBatDau"), now));
             }
-            // (Nếu status = null, lấy tất cả)
 
-            // 3. Lọc theo Category ID
             if (categoryId != null) {
                 predicate = criteriaBuilder.and(predicate,
                         criteriaBuilder.equal(root.get("category").get("id"), categoryId));

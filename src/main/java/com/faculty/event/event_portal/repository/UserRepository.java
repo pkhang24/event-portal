@@ -11,31 +11,27 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.Optional;
 
-@Repository // Đánh dấu đây là một Repository
+@Repository
 public interface UserRepository extends JpaRepository<User, Long> {
-    // JpaRepository<TênEntity, KiểuDữLiệuCủaKhóaChính>
 
     User findFirstByRole(Role role);
 
     List<User> findAllByRole(Role role);
 
-    // Spring Data JPA sẽ tự động tạo câu lệnh SQL
-    // "SELECT * FROM users WHERE email = ?"
-    // chỉ bằng cách bạn đặt tên hàm là findBy[TênThuộcTính]
     Optional<User> findByEmail(String email);
 
     boolean existsByEmail(String email);
     boolean existsByMssv(String mssv);
 
-    // 1. Tìm tất cả user đã bị xóa mềm (DÙNG NATIVE QUERY)
+    // Tìm tất cả user đã bị xóa mềm
     @Query(value = "SELECT * FROM users u WHERE u.deleted_at IS NOT NULL", nativeQuery = true)
     List<User> findSoftDeleted();
 
-    // 2. Tìm một user đã bị xóa mềm (DÙNG NATIVE QUERY)
+    // Tìm một user đã bị xóa mềm
     @Query(value = "SELECT * FROM users u WHERE u.id = :id AND u.deleted_at IS NOT NULL", nativeQuery = true)
     Optional<User> findSoftDeletedById(@Param("id") Long id);
 
-    // 3. Xóa VĨNH VIỄN (DÙNG NATIVE QUERY)
+    // Xóa VĨNH VIỄN
     @Modifying
     @Query(value = "DELETE FROM users WHERE id = :id", nativeQuery = true)
     void permanentDelete(@Param("id") Long id);

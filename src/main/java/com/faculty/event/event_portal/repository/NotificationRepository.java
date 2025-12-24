@@ -13,10 +13,8 @@ import java.util.List;
 
 @Repository
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
-    // Lấy danh sách thông báo của user, mới nhất lên đầu
     List<Notification> findByUserOrderByCreatedAtDesc(User user);
 
-    // Đếm số thông báo chưa đọc
     long countByUserAndIsReadFalse(User user);
 
     @Modifying

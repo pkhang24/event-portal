@@ -7,7 +7,7 @@ import org.springframework.core.io.UrlResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile; // Import quan trọng
+import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -23,29 +23,27 @@ public class BannerController {
         this.bannerService = bannerService;
     }
 
-    // API Public: Lấy banner active
     @GetMapping("/active")
     public ResponseEntity<List<Banner>> getActiveBanners() {
         return ResponseEntity.ok(bannerService.getActiveBanners());
     }
 
-    /// Lấy danh sách (Admin)
+    /// Lấy danh sách
     @GetMapping
     public ResponseEntity<List<Banner>> getAllBanners() {
         return ResponseEntity.ok(bannerService.getAllBanners());
     }
 
-    // API MỚI: Đọc ảnh banner
+    // Đọc ảnh banner
     @GetMapping("/images/{fileName:.+}")
     public ResponseEntity<Resource> getBannerImage(@PathVariable String fileName) {
         try {
-            // Đường dẫn tới thư mục uploads (đảm bảo giống trong Service)
             Path filePath = Paths.get("uploads").toAbsolutePath().normalize().resolve(fileName).normalize();
             Resource resource = new UrlResource(filePath.toUri());
 
             if (resource.exists()) {
                 return ResponseEntity.ok()
-                        .contentType(MediaType.IMAGE_PNG) // Hoặc MediaType.IMAGE_JPEG tùy ảnh
+                        .contentType(MediaType.IMAGE_PNG)
                         .body(resource);
             } else {
                 return ResponseEntity.notFound().build();
@@ -55,7 +53,6 @@ public class BannerController {
         }
     }
 
-    // Tạo mới (Giống hệt Event: nhận file 'image')
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Banner> createBanner(
             @RequestParam("image") MultipartFile image,
@@ -64,7 +61,6 @@ public class BannerController {
         return ResponseEntity.ok(bannerService.createBanner(image, active));
     }
 
-    // Cập nhật
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Banner> updateBanner(
             @PathVariable Long id,
@@ -74,7 +70,6 @@ public class BannerController {
         return ResponseEntity.ok(bannerService.updateBanner(id, image, active));
     }
 
-    // Các API xóa giữ nguyên...
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteBanner(@PathVariable Long id) {
         bannerService.deleteBanner(id);

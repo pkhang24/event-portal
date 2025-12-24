@@ -16,11 +16,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
-@Component // Đánh dấu đây là 1 Bean để Spring quản lý
-public class JwtAuthenticationFilter extends OncePerRequestFilter { // Đảm bảo filter chạy 1 LẦN cho mỗi request
+@Component
+public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
-    private final UserDetailsService userDetailsService; // Đây chính là UserDetailsServiceImpl
+    private final UserDetailsService userDetailsService;
 
     public JwtAuthenticationFilter(JwtService jwtService, UserDetailsService userDetailsService) {
         this.jwtService = jwtService;
@@ -34,47 +34,36 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter { // Đảm b�
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
 
-        // 1. Lấy header 'Authorization' từ request
         final String authHeader = request.getHeader("Authorization");
         final String jwt;
         final String userEmail;
 
-        // 2. Kiểm tra xem header có tồn tại và có 'Bearer ' không
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            filterChain.doFilter(request, response); // Cho request đi tiếp (sẽ bị chặn sau nếu API yêu cầu)
+            filterChain.doFilter(request, response);
             return;
         }
 
-        // 3. Tách lấy token (bỏ chữ "Bearer ")
-        jwt = authHeader.substring(7); // "Bearer ".length() == 7
-
-        // 4. Dùng JwtService để trích xuất email từ token
+        jwt = authHeader.substring(7);
         userEmail = jwtService.extractUsername(jwt);
 
-        // 5. Kiểm tra email có tồn tại và user chưa được xác thực
         if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
-            // 6. Lấy thông tin user từ CSDL
             UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
 
-            // 7. Kiểm tra token có hợp lệ không
             if (jwtService.isTokenValid(jwt, userDetails)) {
-                // 8. Nếu hợp lệ, tạo 1 token xác thực và đưa user vào SecurityContext
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                         userDetails,
-                        null, // Không cần credentials (password)
+                        null,
                         userDetails.getAuthorities()
                 );
                 authToken.setDetails(
                         new WebAuthenticationDetailsSource().buildDetails(request)
                 );
 
-                // 9. Cập nhật SecurityContextHolder
                 SecurityContextHolder.getContext().setAuthentication(authToken);
             }
         }
 
-        // 10. Cho request đi tiếp
         filterChain.doFilter(request, response);
     }
 }

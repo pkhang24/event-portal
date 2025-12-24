@@ -12,19 +12,19 @@ import java.util.Optional;
 @Repository
 public interface BannerRepository extends JpaRepository<Banner, Long> {
 
-    // 1. Lấy banner cho trang chủ (Active + Chưa xóa)
+    // Lấy banner cho trang chủ (Active + Chưa xóa)
     @Query("SELECT b FROM Banner b WHERE b.isActive = true AND b.deletedAt IS NULL ORDER BY b.createdAt DESC")
     List<Banner> findAllActive();
 
-    // 2. Lấy tất cả banner CHƯA XÓA (cho Admin)
+    // Lấy tất cả banner CHƯA XÓA (cho Admin)
     @Query("SELECT b FROM Banner b WHERE b.deletedAt IS NULL ORDER BY b.createdAt DESC")
     List<Banner> findAllNotDeleted();
 
-    // 3. Tìm banner trong thùng rác
+    // Tìm banner trong thùng rác
     @Query(value = "SELECT * FROM banners WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC", nativeQuery = true)
     List<Banner> findSoftDeleted();
 
-    // 4. Tìm 1 banner trong thùng rác
+    // Tìm 1 banner trong thùng rác
     @Query(value = "SELECT * FROM banners WHERE id = :id AND deleted_at IS NOT NULL", nativeQuery = true)
     Optional<Banner> findSoftDeletedById(@Param("id") Long id);
 }

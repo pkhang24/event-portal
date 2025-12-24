@@ -9,12 +9,11 @@ import java.util.UUID;
 @Service
 public class FileStorageService {
 
-    // Thư mục lưu ảnh (sẽ nằm ngay trong thư mục project của bạn)
+    // Thư mục lưu ảnh
     private final Path fileStorageLocation = Paths.get("uploads").toAbsolutePath().normalize();
 
     public FileStorageService() {
         try {
-            // Tự động tạo thư mục uploads nếu chưa có
             Files.createDirectories(this.fileStorageLocation);
         } catch (Exception ex) {
             throw new RuntimeException("Không thể tạo thư mục upload.", ex);
@@ -22,11 +21,10 @@ public class FileStorageService {
     }
 
     public String storeFile(MultipartFile file) {
-        // Tạo tên file ngẫu nhiên để không bị trùng (dùng UUID)
+        // Tạo tên file ngẫu nhiên
         String fileName = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
 
         try {
-            // Copy file vào thư mục đích
             Path targetLocation = this.fileStorageLocation.resolve(fileName);
             Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
 

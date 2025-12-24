@@ -20,8 +20,6 @@ public class RegistrationController {
         this.registrationService = registrationService;
     }
 
-    // API 1: Sinh viên đăng ký tham gia sự kiện
-    // YÊU CẦU VAI TRÒ STUDENT
     // POST http://localhost:8080/api/registrations
     @PostMapping
     public ResponseEntity<TicketResponse> createRegistration(@RequestBody RegistrationRequest request,
@@ -31,8 +29,6 @@ public class RegistrationController {
         return ResponseEntity.status(201).body(ticket); // 201 Created
     }
 
-    // API 2: Lấy tất cả vé của tôi (của sinh viên đang đăng nhập)
-    // YÊU CẦU VAI TRÒ STUDENT
     // GET http://localhost:8080/api/registrations/my-tickets
     @GetMapping("/my-tickets")
     public ResponseEntity<List<TicketResponse>> getMyTickets(Authentication authentication) {
@@ -41,18 +37,14 @@ public class RegistrationController {
         return ResponseEntity.ok(tickets);
     }
 
-    // API 3: Điểm danh (Check-in)
-    // YÊU CẦU VAI TRÒ POSTER hoặc ADMIN
     // POST http://localhost:8080/api/registrations/check-in
     @PostMapping("/check-in")
     public ResponseEntity<TicketResponse> checkIn(@RequestBody CheckInRequest request,
                                                   Authentication authentication) {
-        // Chúng ta có thể log lại email người check-in (authentication.getName()) nếu muốn
         TicketResponse ticket = registrationService.checkInTicket(request.getTicketCode());
         return ResponseEntity.ok(ticket);
     }
 
-    // API 4: Lấy lịch sử tham gia (Đã tham gia & Đã kết thúc)
     // GET http://localhost:8080/api/registrations/history
     @GetMapping("/history")
     public ResponseEntity<List<TicketResponse>> getMyHistory(Authentication authentication) {
@@ -61,13 +53,12 @@ public class RegistrationController {
         return ResponseEntity.ok(history);
     }
 
-    // API 5: (Student) Hủy đăng ký vé
     // DELETE http://localhost:8080/api/registrations/{id}
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> cancelRegistration(@PathVariable("id") Long registrationId,
                                                    Authentication authentication) {
         String studentEmail = authentication.getName();
         registrationService.cancelRegistration(registrationId, studentEmail);
-        return ResponseEntity.noContent().build(); // Trả về 204 No Content
+        return ResponseEntity.noContent().build();
     }
 }

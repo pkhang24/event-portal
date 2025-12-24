@@ -18,7 +18,6 @@ import org.springframework.stereotype.Service;
 @Service
 public class AuthServiceImpl implements AuthService {
 
-    // Tiêm (Inject) các dependency cần thiết
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
@@ -36,36 +35,29 @@ public class AuthServiceImpl implements AuthService {
 
 //    @Override
 //    public AuthResponse register(RegisterRequest request) {
-//        // 1. Kiểm tra xem email đã tồn tại chưa
 //        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
 //            // Ném ra lỗi nếu email đã tồn tại
 //            throw new IllegalArgumentException("Email đã được sử dụng");
 //        }
 //
-//        // 2. Tạo một đối tượng User mới
 //        User newUser = new User();
 //        newUser.setHoTen(request.getHoTen());
 //        newUser.setMssv(request.getMssv());
 //        newUser.setEmail(request.getEmail());
-//        // 3. Mã hóa mật khẩu
 //        newUser.setPassword(passwordEncoder.encode(request.getPassword()));
-//        // 4. Gán vai trò mặc định là STUDENT
 //        newUser.setRole(Role.STUDENT);
 //
-//        // 5. Lưu user vào CSDL
 //        userRepository.save(newUser);
 //
-//        // 6. Tạo JWT token cho user mới
 //        // (Chúng ta cần tạo một đối tượng UserDetails cho JwtService)
 //        var userDetails = org.springframework.security.core.userdetails.User
 //                .withUsername(newUser.getEmail())
 //                .password(newUser.getPassword())
-//                .authorities(newUser.getRole().name()) // Dùng .name() để lấy tên Enum
+//                .authorities(newUser.getRole().name())
 //                .build();
 //
 //        String token = jwtService.generateToken(userDetails);
 //
-//        // 7. Trả về token
 //        return new AuthResponse(token);
 //    }
 
@@ -75,11 +67,9 @@ public class AuthServiceImpl implements AuthService {
                 new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
         );
 
-        // Lấy User entity đầy đủ (thay vì UserDetails)
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new UsernameNotFoundException("Không tìm thấy user"));
 
-        // Gọi hàm generateToken MỚI
         String token = jwtService.generateToken(user);
 
         return new AuthResponse(token);

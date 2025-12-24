@@ -7,8 +7,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.jpa.domain.Specification; // Import mới
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor; // Import mới
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,9 +19,6 @@ import java.util.Optional;
 
 @Repository
 public interface EventRepository extends JpaRepository<Event, Long>, JpaSpecificationExecutor<Event> { // Thêm JpaSpecificationExecutor
-    // Chúng ta có thể thêm các hàm tìm kiếm tùy chỉnh sau này
-    // Ví dụ: tìm sự kiện theo trạng thái, tìm sự kiện sắp diễn ra...
-    // Trong file EventRepository.java
     List<Event> findAllByTrangThai(EventStatus status);
 
     List<Event> findAllByTrangThaiNot(EventStatus status, Sort sort);
@@ -54,43 +51,42 @@ public interface EventRepository extends JpaRepository<Event, Long>, JpaSpecific
             @Param("endDate") LocalDateTime endDate
     );
 
-    // Thống kê số lượng sự kiện theo từng tháng trong năm (Chỉ tính PUBLISHED)
-    // Trả về: [Tháng (Integer), Số lượng (Long)]
+    // Thống kê số lượng sự kiện theo từng tháng trong năm
     @Query("SELECT EXTRACT(MONTH FROM e.thoiGianBatDau), COUNT(e.id) " +
             "FROM Event e " +
             "WHERE e.trangThai = com.faculty.event.event_portal.entity.EventStatus.PUBLISHED " +
-            "AND EXTRACT(YEAR FROM e.thoiGianBatDau) = :year " + // Sửa chỗ này
-            "GROUP BY EXTRACT(MONTH FROM e.thoiGianBatDau) " + // Sửa chỗ này
+            "AND EXTRACT(YEAR FROM e.thoiGianBatDau) = :year " +
+            "GROUP BY EXTRACT(MONTH FROM e.thoiGianBatDau) " +
             "ORDER BY 1 ASC")
     List<Object[]> countEventsByMonth(@Param("year") int year);
 
-    // 1. Tìm tất cả sự kiện đã bị xóa mềm (DÙNG NATIVE QUERY)
+    // Tìm tất cả sự kiện đã bị xóa mềm
     @Query(value = "SELECT * FROM events e WHERE e.deleted_at IS NOT NULL", nativeQuery = true)
     List<Event> findSoftDeleted();
 
-    // 2. Tìm một sự kiện đã bị xóa mềm (DÙNG NATIVE QUERY)
+    // ìm một sự kiện đã bị xóa mềm
     @Query(value = "SELECT * FROM events e WHERE e.id = :id AND e.deleted_at IS NOT NULL", nativeQuery = true)
     Optional<Event> findSoftDeletedById(@Param("id") Long id);
 
-    // --- [MỚI] HÀM CHO POSTER: Tìm sự kiện đã xóa của riêng Poster ---
+    // HÀM CHO POSTER: Tìm sự kiện đã xóa của riêng Poster
     @Query(value = "SELECT * FROM events e WHERE e.deleted_at IS NOT NULL AND e.nguoi_dang_id = :userId", nativeQuery = true)
     List<Event> findSoftDeletedByUserId(@Param("userId") Long userId);
 
-    // --- [MỚI] Tìm 1 sự kiện đã xóa (để khôi phục/xóa cứng) ---
+    // Tìm 1 sự kiện đã xóa
     @Query(value = "SELECT * FROM events e WHERE e.id = :id AND e.deleted_at IS NOT NULL", nativeQuery = true)
     Optional<Event> findDeletedById(@Param("id") Long id);
 
-    // --- [MỚI] Khôi phục sự kiện (Set deleted_at về NULL) ---
+    // Khôi phục sự kiện
     @Modifying
     @Query(value = "UPDATE events SET deleted_at = NULL WHERE id = :id", nativeQuery = true)
     void restoreEvent(@Param("id") Long id);
 
-    // [MỚI] Xóa sạch các vé đăng ký trước khi xóa sự kiện (để tránh lỗi FK)
+    // Xóa sạch các vé đăng ký trước khi xóa sự kiện (để tránh lỗi FK)
     @Modifying
     @Query(value = "DELETE FROM registrations WHERE event_id = :eventId", nativeQuery = true)
     void deleteRegistrationsByEventId(@Param("eventId") Long eventId);
 
-    // 3. Xóa VĨNH VIỄN (DÙNG NATIVE QUERY)
+    // Xóa VĨNH VIỄN (DÙNG NATIVE QUERY)
     @Modifying
     @Query(value = "DELETE FROM events WHERE id = :id", nativeQuery = true)
     void permanentDelete(@Param("id") Long id);

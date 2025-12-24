@@ -5,7 +5,6 @@ import java.time.LocalDateTime;
 
 @Data
 public class EventRequest {
-    // Chúng ta cần các trường này từ người đăng (POSTER)
     private String tieuDe;
     private String moTaNgan;
     private String noiDung;
@@ -13,8 +12,8 @@ public class EventRequest {
     private LocalDateTime thoiGianBatDau;
     private LocalDateTime thoiGianKetThuc;
     private String diaDiem;
-    private Integer soLuongGioiHan; // Có thể null (không giới hạn)
+    private Integer soLuongGioiHan; // Có thể null
     private Long categoryId;
     private String trangThai;
-    // "trangThai" (DRAFT/PUBLISHED) sẽ được set trong service
+    // "trangThai" (DRAFT/PUBLISHED)
 }

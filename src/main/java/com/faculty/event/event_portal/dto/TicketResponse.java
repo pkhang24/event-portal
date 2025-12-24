@@ -10,13 +10,13 @@ public class TicketResponse {
     private String ticketCode; // Mã QR code
     private String trangThai; // "REGISTERED" or "ATTENDED"
 
-    // Thông tin sự kiện (lấy từ vé)
+    // Thông tin sự kiện
     private Long eventId;
     private String tieuDeSuKien;
     private LocalDateTime thoiGianBatDau;
     private String diaDiem;
 
-    // Thông tin người tham dự (lấy từ vé)
+    // Thông tin người tham dự
     private Long studentId;
     private String tenSinhVien;
 }

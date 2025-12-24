@@ -18,29 +18,27 @@ public interface EventService {
 
     List<EventResponse> getMyEvents(String posterEmail);
 
-    // Lấy chi tiết 1 sự kiện (public)
+    // Lấy chi tiết 1 sự kiện
     EventResponse getEventById(Long id);
 
-    /// SỬA: Thêm MultipartFile image vào tham số
     EventResponse createEvent(EventRequest request, MultipartFile image, MultipartFile coverImage, String posterEmail);
 
-    // SỬA: Thêm MultipartFile image vào tham số
     EventResponse updateEvent(Long id, EventRequest request, MultipartFile image, MultipartFile coverImage, String posterEmail);
 
-    // Xóa sự kiện (cho POSTER/ADMIN)
+    // Xóa sự kiện
     void deleteEvent(Long id, String userEmail);
 
     void rejectEvent(Long EventId, String reason);
 
     void cancelEvent(Long EventId, String reason);
 
-    // 1. Lấy danh sách các sự kiện đã xóa của Poster
+    // Lấy danh sách các sự kiện đã xóa của Poster
     List<EventResponse> getMyDeletedEvents(String posterEmail);
 
-    // 2. Khôi phục sự kiện từ thùng rác
+    // Khôi phục sự kiện từ thùng rác
     void restoreEvent(Long id, String userEmail);
 
-    // 3. Xóa vĩnh viễn sự kiện
+    // Xóa vĩnh viễn sự kiện
     void permanentDelete(Long id, String userEmail);
 
     List<ParticipantResponse> getEventParticipants(Long eventId, String posterEmail);

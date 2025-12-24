@@ -2,6 +2,7 @@ package com.faculty.event.event_portal.repository;
 
 import com.faculty.event.event_portal.entity.Event;
 import com.faculty.event.event_portal.entity.Registration;
+import com.faculty.event.event_portal.entity.RegistrationStatus;
 import com.faculty.event.event_portal.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -17,24 +18,21 @@ import java.util.Optional;
 @Repository
 public interface RegistrationRepository extends JpaRepository<Registration, Long> {
 
-    // Tìm vé theo mã vé (dùng cho điểm danh)
     Optional<Registration> findByTicketCode(String ticketCode);
 
-    // Tìm tất cả vé của 1 sinh viên
     List<Registration> findAllByUser(User user);
 
     List<Registration> findAllByEvent(Event event);
 
-    // Kiểm tra xem sinh viên đã đăng ký sự kiện này chưa
     boolean existsByUserAndEvent(User user, Event event);
 
-    // Trong file RegistrationRepository.java
-    // (Bạn đã có hàm existsByUserAndEvent và findAllByUser rồi)
-    // Thêm hàm này:
     long countByEvent(Event event);
 
-    // Thêm hàm xóa tất cả lượt đăng ký của 1 user
-    // @Transactional và @Modifying là bắt buộc cho lệnh DELETE/UPDATE tùy chỉnh
+//    long countByEventIdAndTrangThai(Long id, String attended);
+    @Query("SELECT COUNT(r) FROM Registration r WHERE r.event.id = :eventId AND r.trangThai = :trangThai")
+    long countByEventIdAndTrangThai(@Param("eventId") Long eventId, @Param("trangThai") RegistrationStatus trangThai);
+
+    // Xóa tất cả lượt đăng ký của 1 user
     @Modifying
     @org.springframework.transaction.annotation.Transactional
     @Query("DELETE FROM Registration r WHERE r.user.id = :userId")
@@ -64,7 +62,7 @@ public interface RegistrationRepository extends JpaRepository<Registration, Long
             "FROM Registration r " +
             "JOIN r.event e " +
             "JOIN e.category c " +
-            "WHERE e.thoiGianBatDau BETWEEN :startDate AND :endDate " + // <<< THÊM DÒNG NÀY
+            "WHERE e.thoiGianBatDau BETWEEN :startDate AND :endDate " +
             "GROUP BY c.id, c.tenDanhMuc " +
             "ORDER BY COUNT(r.id) DESC")
     List<Object[]> findCategoryStatsInDateRange(@Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);

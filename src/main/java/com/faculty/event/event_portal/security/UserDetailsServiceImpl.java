@@ -1,7 +1,7 @@
 package com.faculty.event.event_portal.security;
 
 import com.faculty.event.event_portal.repository.UserRepository;
-import org.springframework.security.core.userdetails.User; // Dùng User của Spring
+import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -30,10 +30,10 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         return new org.springframework.security.core.userdetails.User(
                 appUser.getEmail(),
                 appUser.getPassword(),
-                true, // enabled
-                true, // accountNonExpired
-                true, // credentialsNonExpired
-                !appUser.isLocked(), // accountNonLocked (Lưu ý dấu ! : Nếu isLocked=true thì accountNonLocked=false)
+                true,
+                true,
+                true,
+                !appUser.isLocked(),
                 Collections.singletonList(new SimpleGrantedAuthority(appUser.getRole().name()))
         );
     }

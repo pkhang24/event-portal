@@ -21,17 +21,13 @@ public class FileUploadController {
 
     @PostMapping
     public ResponseEntity<Map<String, String>> uploadFile(@RequestParam("file") MultipartFile file) {
-        // 1. Lưu file
         String fileName = fileStorageService.storeFile(file);
 
-        // 2. Tạo đường dẫn URL để truy cập file đó
-        // Ví dụ: http://localhost:8080/uploads/ten-file.jpg
         String fileDownloadUri = ServletUriComponentsBuilder.fromCurrentContextPath()
                 .path("/uploads/")
                 .path(fileName)
                 .toUriString();
 
-        // 3. Trả về JSON cho Frontend
         Map<String, String> response = new HashMap<>();
         response.put("url", fileDownloadUri);
 

@@ -9,7 +9,6 @@ public interface BannerService {
     List<Banner> getActiveBanners();
     List<Banner> getAllBanners();
 
-    // Sửa 2 hàm này để nhận MultipartFile
     Banner createBanner(MultipartFile image, Boolean active);
     Banner updateBanner(Long id, MultipartFile image, Boolean active);
 

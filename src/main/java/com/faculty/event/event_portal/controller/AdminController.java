@@ -42,7 +42,7 @@ public class AdminController {
         return ResponseEntity.ok(adminService.getRecentActivities());
     }
 
-    // --- 1. QUẢN LÝ USER ---
+    // --- QUẢN LÝ USER ---
     @GetMapping("/users")
     public ResponseEntity<List<UserResponse>> getAllUsers() {
         return ResponseEntity.ok(adminService.getAllUsers());
@@ -77,9 +77,8 @@ public class AdminController {
         return ResponseEntity.ok().build();
     }
 
-    // --- 2. QUẢN LÝ SỰ KIỆN (ADMIN) ---
+    // --- QUẢN LÝ SỰ KIỆN (ADMIN) ---
 
-    // 👇 [SỬA LẠI CHỖ NÀY]: Bạn phải mở comment ra thì Admin mới thấy danh sách
     @GetMapping("/events")
     public ResponseEntity<List<EventResponse>> getAllEvents() {
         return ResponseEntity.ok(eventService.getAllEventsForAdmin());
@@ -127,7 +126,7 @@ public class AdminController {
         return ResponseEntity.noContent().build();
     }
 
-    // --- 3. THỐNG KÊ ---
+    // --- THỐNG KÊ ---
     @GetMapping("/stats")
     public ResponseEntity<Map<String, Long>> getDashboardStats() {
         return ResponseEntity.ok(adminService.getDashboardStats());

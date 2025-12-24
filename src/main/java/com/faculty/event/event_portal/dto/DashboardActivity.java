@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 @Data
 @AllArgsConstructor
 public class DashboardActivity {
-    private String title;       // Nội dung (VD: "Nguyễn Văn A đã đăng ký...")
+    private String title;
     private LocalDateTime time; // Thời gian
     private String type;        // Loại (register, create_event, new_user...)
 }

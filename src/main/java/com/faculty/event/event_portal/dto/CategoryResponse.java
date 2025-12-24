@@ -6,5 +6,5 @@ import lombok.Data;
 public class CategoryResponse {
     private Long id;
     private String tenDanhMuc;
-    private Long soLuongSuKien; // Trường mới
+    private Long soLuongSuKien;
 }

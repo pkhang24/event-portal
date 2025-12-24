@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/auth") // Tiền tố chung cho các API xác thực
+@RequestMapping("/api/auth")
 public class AuthController {
 
     private final AuthService authService;
@@ -33,7 +33,6 @@ public class AuthController {
     // POST http://localhost:8080/api/auth/login
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request) {
-        // Gọi service để xử lý
         AuthResponse response = authService.login(request);
         return ResponseEntity.ok(response);
     }
